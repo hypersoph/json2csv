@@ -8,8 +8,8 @@ from collections import ChainMap
 
 import time
 
-JSON_FILE = "data/test_full.json" # modify this to target JSON file
-OUT_DIR = Path("output") # modify this to desired output directory
+JSON_FILE = "data/test_full.json"  # modify this to target JSON file
+OUT_DIR = Path("output")  # modify this to desired output directory
 
 # ======= CREATE MAPPINGS ====== #
 # only needs to be done once for the entire program
@@ -132,3 +132,11 @@ total_time = (end - start) * 1000
 print(f"The total number of rows is: {count_rows}")
 print(f"The average time per row is: {total_time / count_rows:.4f} ms")
 print(f"The total time is: {total_time:.4f} ms")
+
+
+def main():
+    print("test")
+
+
+if __name__ == "__main__":
+    main()
