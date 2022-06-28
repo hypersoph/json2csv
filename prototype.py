@@ -8,8 +8,8 @@ from collections import ChainMap
 
 import time
 
-JSON_FILE = "test_full.json" # modify this to target JSON file
-OUT_DIR = Path("results") # modify this to desired output directory
+JSON_FILE = "data/test_full.json" # modify this to target JSON file
+OUT_DIR = Path("output") # modify this to desired output directory
 
 # ======= CREATE MAPPINGS ====== #
 # only needs to be done once for the entire program
@@ -63,9 +63,9 @@ class FileCollection:
         self.files = {}
         self.__index = 0
 
-    def open(self, file_key, *file_name):
+    def open(self, file_key, *open_args):
         '''open file and add to files dict'''
-        f = open(*file_name)
+        f = open(*open_args, newline='')
         self.files[file_key] = f
         return f
 
@@ -88,7 +88,7 @@ writers = [csv.DictWriter(files[table], fieldnames=list(mappings[table].keys()))
 start = time.time()  # track overall run time of flattening algorithm
 count_rows = 0  # track number of rows written
 
-with open(JSON_FILE, "r") as jsonfile:
+with open(JSON_FILE, "r", newline='') as jsonfile:
     for writer in writers:
         writer.writeheader()
 
