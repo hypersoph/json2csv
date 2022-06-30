@@ -30,20 +30,22 @@ def create_mappings():
 
         # Second pass: add all column names to mappings with default values
         for (prefix, event, value) in ijson.parse(f, multiple_values=True):
-            # get name of relevant table from prefix eg. 'site'
-            index_of_sep = prefix.find(".")
-            if index_of_sep == -1:
-                base_prefix = prefix
-            else:
-                base_prefix = prefix[:index_of_sep]
+            if (event == "string" or event == "number"):
+                # get name of relevant table from prefix eg. 'site'
+                index_of_sep = prefix.find(".")
+                if index_of_sep == -1:
+                    base_prefix = prefix
+                else:
+                    base_prefix = prefix[:index_of_sep]
 
-            # find table that matches the prefix and add value if value is an external node
-            for key in list(mappings.keys()):
-                if base_prefix == key:
-                    if event == "string" or event == "number":
-                        mappings[key][prefix] = None
+                # find table that matches the prefix and add value if value is an external node
+                for key in list(mappings.keys()):
+                    if base_prefix == key:
+                        if event == "string" or event == "number":
+                            mappings[key][prefix] = None
 
-                    break  # external value was found, parse next
+                        break  # external value was found, parse next
+
 
     # for each table turn into ChainMap
     # The ChainMap makes it easy to restore default values to None after every row
