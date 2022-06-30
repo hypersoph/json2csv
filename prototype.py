@@ -16,9 +16,9 @@ OUT_DIR = Path("output")  # modify this to desired output directory
 # only needs to be done once for the entire program
 def create_mappings():
     mappings = {}
-    # use first top-level json object to create file and column mappings
+
     with open(JSON_FILE, "r") as f:
-        # First pass: add all top-level keys
+        # First pass: add all top-level keys using first json in file
         for (prefix, event, value) in ijson.parse(f, multiple_values=True):
             if prefix == '' and event == 'map_key' and value:
                 mappings[value] = {}
@@ -29,6 +29,7 @@ def create_mappings():
                 break
 
         # Second pass: add all column names to mappings with default values
+        # This pass goes through the entire json file to collect all possible columns
         for (prefix, event, value) in ijson.parse(f, multiple_values=True):
             if (event == "string" or event == "number"):
                 # get name of relevant table from prefix eg. 'site'
@@ -45,6 +46,7 @@ def create_mappings():
                             mappings[key][prefix] = None
 
                         break  # external value was found, parse next
+
 
 
     # for each table turn into ChainMap
