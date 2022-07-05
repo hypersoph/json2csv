@@ -40,12 +40,8 @@ def create_mappings():
                     base_prefix = prefix[:index_of_sep]
 
                 # find table that matches the prefix and add value if value is an external node
-                for key in list(mappings.keys()):
-                    if base_prefix == key:
-                        if event == "string" or event == "number":
-                            mappings[key][prefix] = None
-
-                        break  # external value was found, parse next
+                if base_prefix in list(mappings.keys()):
+                    mappings[base_prefix][prefix] = None
 
 
 
