@@ -1,6 +1,5 @@
 from pathlib import Path
 
-import ijson
 
 import os
 import csv
@@ -8,8 +7,10 @@ from collections import ChainMap
 
 import time
 
+from utils import parse
+
 JSON_FILE = "data/test_full.json"  # modify this to target JSON file
-OUT_DIR = Path("output")  # modify this to desired output directory
+OUT_DIR = Path("output/output2")  # modify this to desired output directory
 
 
 # ======= CREATE MAPPINGS ====== #
@@ -19,7 +20,7 @@ def create_mappings():
 
     with open(JSON_FILE, "r") as f:
         # First pass: add all top-level keys using first json in file
-        for (prefix, event, value) in ijson.parse(f, multiple_values=True):
+        for (prefix, event, value) in parse(f):
             if prefix == '' and event == 'map_key' and value:
                 mappings[value] = {}
 
@@ -30,7 +31,7 @@ def create_mappings():
 
         # Second pass: add all column names to mappings with default values
         # This pass goes through the entire json file to collect all possible columns
-        for (prefix, event, value) in ijson.parse(f, multiple_values=True):
+        for (prefix, event, value) in parse(f):
             if (event == "string" or event == "number"):
                 # get name of relevant table from prefix eg. 'site'
                 index_of_sep = prefix.find(".")
@@ -40,12 +41,8 @@ def create_mappings():
                     base_prefix = prefix[:index_of_sep]
 
                 # find table that matches the prefix and add value if value is an external node
-                for key in list(mappings.keys()):
-                    if base_prefix == key:
-                        if event == "string" or event == "number":
-                            mappings[key][prefix] = None
-
-                        break  # external value was found, parse next
+                if base_prefix in list(mappings.keys()):
+                    mappings[base_prefix][prefix] = None
 
 
 
@@ -86,8 +83,7 @@ def json_flat(mappings, writers):
         for writer in writers:
             writer.writeheader()
 
-        for (prefix, event, value) in ijson.parse(jsonfile,
-                                                  multiple_values=True):  # without multiple_values flag our json is invalid
+        for (prefix, event, value) in parse(jsonfile):  # without multiple_values flag our json is invalid
             # get name of relevant table from prefix eg. 'site'
             index_of_sep = prefix.find(".")
             if index_of_sep == -1:
