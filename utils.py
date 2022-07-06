@@ -3,7 +3,8 @@ from stack import Stack
 
 def parse(f):
     '''
-    customized from ijson.parse function to return more descriptive prefixes for arrays
+    Based on ijson.parse function
+    Return more descriptive prefixes for arrays
 
     eg.
     {
