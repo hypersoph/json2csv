@@ -9,12 +9,13 @@ import time
 
 from utils import parse
 
-JSON_FILE = "data/test_full.json"  # modify this to target JSON file
-OUT_DIR = Path("output/output2")  # modify this to desired output directory
+JSON_FILE = "data/sample.json"  # modify this to target JSON file
+OUT_DIR = Path("output/sample2")  # modify this to desired output directory
 
 
 # ======= CREATE MAPPINGS ====== #
 # only needs to be done once for the entire program
+# assumes that every json has the same top-level keys
 def create_mappings():
     mappings = {}
 
