@@ -15,8 +15,9 @@ def parse(f):
 
     basic_events = ijson.basic_parse(f, multiple_values=True)
     path = []
-    arr_indices = [] # array tracking indices of array elements in json
+    arr_indices = [] # tracking indices of array elements in json
     current_i = None # index of current json array element index in the path
+    # purpose of current_i is mainly to differentiate between regular arrays [1,2,3] and arrays with nested json in them
 
     for event, value in basic_events:
         if event == 'map_key':
@@ -29,9 +30,9 @@ def parse(f):
         elif event == 'end_map':
             path.pop()
 
-            if current_i:
+            if arr_indices:
                 arr_indices[-1] = arr_indices[-1] + 1
-                path[current_i] = str(arr_indices[-1])
+                path[-1] = str(arr_indices[-1])
 
             prefix = '.'.join(path)
         elif event == 'start_array':
@@ -48,7 +49,7 @@ def parse(f):
 
         else:  # any scalar value
             prefix = '.'.join(path)
-            if len(arr_indices) > 0 and current_i == len(path) - 1: # if array is of type [value1, value2, value3]
+            if arr_indices and current_i == len(path) - 1: # if array is of type [value1, value2, value3]
                 arr_indices[-1] = arr_indices[-1] + 1
                 path[current_i] = str(arr_indices[-1]) # update the path
 
