@@ -1,5 +1,5 @@
 import ijson
-
+from stack import Stack
 
 def parse(f):
     '''
@@ -15,9 +15,11 @@ def parse(f):
 
     basic_events = ijson.basic_parse(f, multiple_values=True)
     path = []
-    arr_indices = []  # tracking indices of array elements in json
+
+    # variables to compute prefix for arrays in json
+    arr_indices = Stack()  # tracking indices of array elements in json
     current_i = None  # index of current json array element index in the path
-    # purpose of current_i is mainly to differentiate between regular arrays [1,2,3] and arrays with nested json in them
+    # purpose of current_i is mainly to differentiate between regular arrays [1,2,3] and arrays with json nested in them
 
     for event, value in basic_events:
         if event == 'map_key':
@@ -30,15 +32,15 @@ def parse(f):
         elif event == 'end_map':
             path.pop()
 
-            if arr_indices:
-                arr_indices[-1] = arr_indices[-1] + 1
-                path[-1] = str(arr_indices[-1])
+            if not arr_indices.is_empty():
+                arr_indices.setLast(arr_indices.peek() + 1)
+                path[-1] = str(arr_indices.peek())
 
             prefix = '.'.join(path)
         elif event == 'start_array':
             prefix = '.'.join(path)
-            arr_indices.append(0)
-            path.append(str(arr_indices[-1]))
+            arr_indices.push(0)
+            path.append(str(arr_indices.peek()))
             current_i = len(path) - 1
 
         elif event == 'end_array':
@@ -49,8 +51,8 @@ def parse(f):
 
         else:  # any scalar value
             prefix = '.'.join(path)
-            if arr_indices and current_i == len(path) - 1:  # if array is of type [value1, value2, value3]
-                arr_indices[-1] = arr_indices[-1] + 1
-                path[current_i] = str(arr_indices[-1])  # update the path
+            if not arr_indices.is_empty() and current_i == len(path) - 1:  # if array is of type [value1, value2, value3]
+                arr_indices.setLast(arr_indices.peek() + 1)
+                path[current_i] = str(arr_indices.peek())  # update the path
 
         yield prefix, event, value

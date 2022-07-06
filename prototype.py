@@ -75,9 +75,6 @@ class FileCollection:
             self.files[file_key].close()
 
 
-
-
-
 def json_flat(mappings, writers):
     count_rows = 0  # track number of rows written
     with open(JSON_FILE, "r", newline='') as jsonfile:
