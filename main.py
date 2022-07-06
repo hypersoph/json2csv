@@ -1,6 +1,5 @@
 from pathlib import Path
 
-
 import os
 import csv
 from collections import ChainMap
@@ -8,15 +7,18 @@ from collections import ChainMap
 import time
 
 from utils import parse
+from helpers import FileCollection
 
 JSON_FILE = "data/sample.json"  # modify this to target JSON file
 OUT_DIR = Path("output/sample2")  # modify this to desired output directory
 
 
-# ======= CREATE MAPPINGS ====== #
-# only needs to be done once for the entire program
-# assumes that every json has the same top-level keys
 def create_mappings():
+    """
+    - only needs to be done once for the entire program
+    - assumes that every json has the same top-level keys
+    :return: mappings
+    """
     mappings = {}
 
     with open(JSON_FILE, "r") as f:
@@ -33,7 +35,7 @@ def create_mappings():
         # Second pass: add all column names to mappings with default values
         # This pass goes through the entire json file to collect all possible columns
         for (prefix, event, value) in parse(f):
-            if (event == "string" or event == "number"):
+            if event == "string" or event == "number":
                 # get name of relevant table from prefix eg. 'site'
                 index_of_sep = prefix.find(".")
                 if index_of_sep == -1:
@@ -45,8 +47,6 @@ def create_mappings():
                 if base_prefix in list(mappings.keys()):
                     mappings[base_prefix][prefix] = None
 
-
-
     # for each table turn into ChainMap
     # The ChainMap makes it easy to restore default values to None after every row
     for table in mappings:
@@ -54,28 +54,14 @@ def create_mappings():
 
     return mappings
 
-    # ===== END CREATE MAPPINGS ===== #
-
-
-# Represents a dict of all CSV files that can be closed simultaneously
-class FileCollection:
-    def __init__(self):
-        self.files = {}
-        self.__index = 0
-
-    def open(self, file_key, *open_args):
-        '''open file and add to files dict'''
-        f = open(*open_args, newline='')
-        self.files[file_key] = f
-        return f
-
-    def close(self):
-        '''close all open files'''
-        for file_key in self.files:
-            self.files[file_key].close()
-
 
 def json_flat(mappings, writers):
+    """
+
+    :param mappings:
+    :param writers:
+    :return:
+    """
     count_rows = 0  # track number of rows written
     with open(JSON_FILE, "r", newline='') as jsonfile:
         for writer in writers:

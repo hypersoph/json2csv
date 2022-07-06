@@ -1,10 +1,10 @@
 import ijson
-from stack import Stack
+from helpers import Stack
 
 def parse(f):
     '''
-    Based on ijson.parse function
-    Return more descriptive prefixes for arrays
+    Generator based on ijson.parse function
+    Return more descriptive prefixes for arrays along with the event and value
 
     eg.
     {
