@@ -52,13 +52,14 @@ class Stack:
             return None
 
     def setLast(self, item):
+        """
+        Modify the last item in the stack
+        :param item: value to change last item of stack to
+        """
         # if there are items in the Stack
         if self.items:
             # then set the item on top of the stack
             self.items[-1] = item
-        # otherwise return None
-        else:
-            return None
           
     def size(self):
         """Return the size of the Stack
