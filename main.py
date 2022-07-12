@@ -9,9 +9,9 @@ import time
 from utils import parse
 from helpers import FileCollection
 
-JSON_FILE = "data/sample.json"  # modify this to target JSON file
-OUT_DIR = Path("output/sample2")  # modify this to desired output directory
-
+JSON_FILE = "data/test_full.json"  # modify this to target JSON file
+OUT_DIR = Path("output")  # modify this to desired output directory
+IDENTIFIERS = ["factId", "rollNumber"]
 
 def create_mappings():
     """
@@ -23,8 +23,8 @@ def create_mappings():
 
     with open(JSON_FILE, "r") as f:
         # First pass: add all top-level keys using first json in file
-        for (prefix, event, value) in parse(f):
-            if prefix == '' and event == 'map_key' and value:
+        for (_, prefix, event, value) in parse(f):
+            if prefix == '' and event == 'map_key' and value not in IDENTIFIERS:
                 mappings[value] = {}
 
             elif prefix == '' and event == 'end_map' and value is None:
@@ -32,17 +32,15 @@ def create_mappings():
                 f.seek(0)  # read from beginning again
                 break
 
+        # Add factId and rollNumber to each table
+        for table in mappings:
+            mappings[table]['factId'] = None
+            mappings[table]['rollNumber'] = None
+
         # Second pass: add all column names to mappings with default values
         # This pass goes through the entire json file to collect all possible columns
-        for (prefix, event, value) in parse(f):
+        for (base_prefix, prefix, event, value) in parse(f):
             if event == "string" or event == "number":
-                # get name of relevant table from prefix eg. 'site'
-                index_of_sep = prefix.find(".")
-                if index_of_sep == -1:
-                    base_prefix = prefix
-                else:
-                    base_prefix = prefix[:index_of_sep]
-
                 # find table that matches the prefix and add value if value is an external node
                 if base_prefix in list(mappings.keys()):
                     mappings[base_prefix][prefix] = None
@@ -67,37 +65,49 @@ def json_flat(mappings, writers):
         for writer in writers:
             writer.writeheader()
 
-        for (prefix, event, value) in parse(jsonfile):  # without multiple_values flag our json is invalid
-            # get name of relevant table from prefix eg. 'site'
-            index_of_sep = prefix.find(".")
-            if index_of_sep == -1:
-                base_prefix = prefix
-            else:
-                base_prefix = prefix[:index_of_sep]
+        roll_number = None
+        fact_id = None
 
-            # if leaf reached and the field is not yet populated, set the value
-            if (event == "string" or event == "number") and mappings[base_prefix][prefix] is None:
+        for (base_prefix, prefix, event, value) in parse(jsonfile):  # without multiple_values flag our json is invalid
 
-                if mappings[base_prefix][prefix] is None:  # value for key prefix empty
-                    mappings[base_prefix][prefix] = value
-            # else if leaf reached and field is already populated, append to array
-            elif event == "string" or event == "number":  # value for key prefix already populated, add to/create an array
+            if roll_number is None and base_prefix == "rollNumber":
+                roll_number = value
+            if fact_id is None and base_prefix == "factId":
+                fact_id = value
 
-                # Note: growing arrays is an expensive operation, may look into linked lists or other solution
-                if type(mappings[base_prefix][prefix]) == list:
-                    mappings[base_prefix][prefix] = [*mappings[base_prefix][prefix],
-                                                     value]  # unpack existing array into new one
-                else:
-                    mappings[base_prefix][prefix] = [mappings[base_prefix][prefix], value]
+            if base_prefix not in IDENTIFIERS:
+                # if leaf reached and the field is not yet populated, set the value
+                if (event == "string" or event == "number") and mappings[base_prefix][prefix] is None:
 
-            # if reached end of a top-level json (ie. finished one property)
-            elif prefix == '' and event == 'end_map' and value is None:
-                count_rows = count_rows + 1
+                    if mappings[base_prefix][prefix] is None:  # value for key prefix empty
+                        mappings[base_prefix][prefix] = value
+                # else if leaf reached and field is already populated, append to array
+                elif event == "string" or event == "number":  # value for key prefix already populated, add to/create an array
 
-                # write rows to all corresponding csv files
-                for writer, mapping in zip(writers, mappings):
-                    writer.writerow(mappings[mapping])
-                    mappings[mapping].maps[0].clear()
+                    # Note: growing arrays is an expensive operation, may look into linked lists or other solution
+                    if type(mappings[base_prefix][prefix]) == list:
+                        mappings[base_prefix][prefix] = [*mappings[base_prefix][prefix],
+                                                         value]  # unpack existing array into new one
+                    else:
+                        mappings[base_prefix][prefix] = [mappings[base_prefix][prefix], value]
+
+                # if reached end of a top-level json (ie. finished one property)
+                elif prefix == '' and event == 'end_map' and value is None:
+                    count_rows = count_rows + 1
+
+                    # add roll number and fact id to row
+                    for table in mappings:
+                        mappings[table]['rollNumber'] = roll_number
+                        mappings[table]['factId'] = fact_id
+
+                    # write rows to all corresponding csv files
+                    for writer, mapping in zip(writers, mappings):
+                        writer.writerow(mappings[mapping])
+
+                        mappings[mapping].maps[0].clear()
+                        roll_number = None
+                        fact_id = None
+
     return count_rows
 
 
@@ -127,7 +137,7 @@ def main():
     total_time = (end - start) * 1000
     print(f"The total number of rows is: {count_rows}")
     print(f"The average time per row is: {total_time / count_rows:.4f} ms")
-    print(f"The total time is: {total_time:.4f} ms")
+    print(f"The total time for json_flat is: {total_time:.4f} ms")
 
 
 if __name__ == "__main__":
