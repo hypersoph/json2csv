@@ -56,4 +56,6 @@ def parse(f):
                 arr_indices.setLast(arr_indices.peek() + 1)
                 path[current_i] = str(arr_indices.peek())  # update the path
 
-        yield prefix, event, value
+        base_prefix = path[0] if prefix else ""
+
+        yield base_prefix, prefix, event, value
