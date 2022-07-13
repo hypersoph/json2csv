@@ -8,13 +8,13 @@ class FileCollection:
         self.__index = 0
 
     def open(self, file_key, *open_args):
-        '''open file and add to files dict'''
+        """open file and add to files dict"""
         f = open(*open_args, newline='')
         self.files[file_key] = f
         return f
 
     def close(self):
-        '''close all open files'''
+        """close all open files"""
         for file_key in self.files:
             self.files[file_key].close()
 
