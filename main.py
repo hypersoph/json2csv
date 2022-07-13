@@ -12,6 +12,7 @@ from helpers import FileCollection
 JSON_FILE = "data/test_full.json"  # modify this to target JSON file
 OUT_DIR = Path("output")  # modify this to desired output directory
 IDENTIFIERS = ["factId", "rollNumber"]
+CHUNK_SIZE = 10000
 
 def create_mappings():
     """
@@ -61,6 +62,8 @@ def json_flat(mappings, writers):
     :return:
     """
     count_rows = 0  # track number of rows written
+    row_collector = []
+
     with open(JSON_FILE, "r", newline='') as jsonfile:
         for writer in writers:
             writer.writeheader()
@@ -102,8 +105,14 @@ def json_flat(mappings, writers):
 
                     # write rows to all corresponding csv files
                     for writer, mapping in zip(writers, mappings):
-                        writer.writerow(mappings[mapping])
 
+                        row_collector.append(mappings[mapping])
+
+                        if len(row_collector) >= CHUNK_SIZE:
+                            writer.writerows(row_collector)
+                            row_collector = []
+
+                        # reset variables
                         mappings[mapping].maps[0].clear()
                         roll_number = None
                         fact_id = None
