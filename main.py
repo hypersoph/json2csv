@@ -102,12 +102,13 @@ def json_flat(mappings, writers):
                     for table in mappings:
                         mappings[table]['rollNumber'] = roll_number
                         mappings[table]['factId'] = fact_id
-                        row = mappings[table].maps[0].copy() # append copy so that row doesn't get reset
+                        row = mappings[table].maps[0].copy()  # append copy so that row doesn't get reset
                         row_collector[table].append(row)
 
                         # reset map
                         mappings[table].maps[0].clear()
 
+                    # write all collected rows if num rows exceeds specified size
                     if len(row_collector) >= CHUNK_SIZE:
                         for writer, rows in zip(writers, row_collector):
                             writer.writerows(row_collector[rows])
@@ -115,10 +116,10 @@ def json_flat(mappings, writers):
                         row_collector = defaultdict(list)
 
                     # reset variables
-
                     roll_number = None
                     fact_id = None
 
+    # write any remaining rows
     if row_collector:
         for writer, rows in zip(writers, row_collector):
             writer.writerows(row_collector[rows])
