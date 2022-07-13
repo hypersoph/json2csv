@@ -1,20 +1,23 @@
 import ijson
 from helpers import Stack
 
-def parse(f):
-    '''
-    Generator based on ijson.parse function
-    Return more descriptive prefixes for arrays along with the event and value
+
+def parse(file, **kwargs):
+    """
+    Generator based on `ijson.parse` function
+    Return more descriptive prefixes for arrays along with the base prefix, event and value
 
     eg.
     {
         "a" : ["one", "two", "three"]
     }
-    the value "one" would have the prefix `a.0` instead of `a.item` as ijson.parse would give.
+    The value "one" would have the prefix `a.0` instead of `a.item` as ijson.parse would give.
     Similarly, "two" would have the prefix `a.1` and "three" `a.2`.
-    '''
 
-    basic_events = ijson.basic_parse(f, multiple_values=True)
+    The base prefix for this would be `a`
+    """
+
+    basic_events = ijson.basic_parse(file, **kwargs)
     path = []
 
     # variables to compute prefix for arrays in json
@@ -52,7 +55,8 @@ def parse(f):
 
         else:  # any scalar value
             prefix = '.'.join(path)
-            if not arr_indices.is_empty() and current_i == len(path) - 1:  # if array is of type [value1, value2, value3]
+            if not arr_indices.is_empty() and current_i == len(
+                    path) - 1:  # if array is of type [value1, value2, value3]
                 arr_indices.setLast(arr_indices.peek() + 1)
                 path[current_i] = str(arr_indices.peek())  # update the path
 
