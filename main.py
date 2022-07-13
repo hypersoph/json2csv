@@ -2,7 +2,7 @@ from pathlib import Path
 
 import os
 import csv
-from collections import ChainMap
+from collections import ChainMap, defaultdict
 
 import time
 
@@ -62,7 +62,7 @@ def json_flat(mappings, writers):
     :return:
     """
     count_rows = 0  # track number of rows written
-    row_collector = []
+    row_collector = defaultdict(list)
 
     with open(JSON_FILE, "r", newline='') as jsonfile:
         for writer in writers:
@@ -102,20 +102,26 @@ def json_flat(mappings, writers):
                     for table in mappings:
                         mappings[table]['rollNumber'] = roll_number
                         mappings[table]['factId'] = fact_id
+                        row = mappings[table].maps[0].copy() # append copy so that row doesn't get reset
+                        row_collector[table].append(row)
 
-                    # write rows to all corresponding csv files
-                    for writer, mapping in zip(writers, mappings):
+                        # reset map
+                        mappings[table].maps[0].clear()
 
-                        row_collector.append(mappings[mapping])
+                    if len(row_collector) >= CHUNK_SIZE:
+                        for writer, rows in zip(writers, row_collector):
+                            writer.writerows(row_collector[rows])
 
-                        if len(row_collector) >= CHUNK_SIZE:
-                            writer.writerows(row_collector)
-                            row_collector = []
+                        row_collector = defaultdict(list)
 
-                        # reset variables
-                        mappings[mapping].maps[0].clear()
-                        roll_number = None
-                        fact_id = None
+                    # reset variables
+
+                    roll_number = None
+                    fact_id = None
+
+    if row_collector:
+        for writer, rows in zip(writers, row_collector):
+            writer.writerows(row_collector[rows])
 
     return count_rows
 
