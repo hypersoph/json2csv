@@ -8,15 +8,17 @@ from utils import parse
 from helpers import FileCollection
 
 JSON_FILE = "data/test_full.json"  # modify this to target JSON file
-OUT_DIR = Path("output")  # modify this to desired output directory
+OUT_DIR = Path("output/out2")  # modify this to desired output directory
 IDENTIFIERS = ["factId", "rollNumber"]
 CHUNK_SIZE = 10000
 
 
 def create_mappings(select_tables):
     """
-    - only needs to be done once for the entire program
+    - only needs to be done once for the duration of the program
     - assumes that every json has the same top-level keys
+
+    :param select_tables: tables to output
     :return: mappings
     """
     mappings = {}
@@ -56,9 +58,9 @@ def create_mappings(select_tables):
 
 def json_flat(mappings, writers, select_tables):
     """
-    Flatten json
+    Flatten json and output to csv
 
-    :param select_tables:
+    :param select_tables: selected tables to output
     :param mappings: mapping dict specifying structure of output files
     :param writers: list of output writers
     :return: count of json lines
@@ -93,7 +95,7 @@ def json_flat(mappings, writers, select_tables):
                     else:
                         mappings[base_prefix][prefix] = [mappings[base_prefix][prefix], value]
 
-            # if reached end of a top-level json (ie. finished one property)
+            # if reached end of a top-level json (i.e. finished one property)
             elif prefix == '' and event == 'end_map' and value is None:
                 count_rows = count_rows + 1
 
@@ -127,12 +129,18 @@ def json_flat(mappings, writers, select_tables):
 
 
 def main():
-    select_tables = ["improvements", "site"]
+    select_tables = []
+
+    start = time.time()
     mappings = create_mappings(select_tables)
+    end = time.time()
+
+    total_time = (end - start)
+    print(f"The total time to execute create_mappings is {total_time:.4f} s\n")
 
     select_tables = list(mappings.keys()) if not select_tables else select_tables
 
-    # create output directory if does not exist
+    # create output directory
     if not os.path.exists(OUT_DIR):
         os.mkdir(OUT_DIR)
 
@@ -147,15 +155,14 @@ def main():
     writers = [csv.DictWriter(files[table], fieldnames=list(mappings[table].keys())) for table in mappings]
 
     start = time.time()  # track overall run time of flattening algorithm
-
     count_rows = json_flat(mappings, writers, select_tables)
     out_files.close()  # important - must close output files
-
     end = time.time()
-    total_time = (end - start) * 1000
+
+    total_time = (end - start)
     print(f"The total number of rows is: {count_rows}")
-    print(f"The average time per row is: {total_time / count_rows:.4f} ms")
-    print(f"The total time for json_flat is: {total_time:.4f} ms")
+    print(f"The average time per row is: {total_time * 1000 / count_rows:.4f} ms")
+    print(f"The total time to execute json_flat is: {total_time:.4f} s")
 
 
 if __name__ == "__main__":
