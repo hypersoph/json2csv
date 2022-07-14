@@ -1,9 +1,7 @@
 from pathlib import Path
-
 import os
 import csv
 from collections import ChainMap, defaultdict
-
 import time
 
 from utils import parse
@@ -75,15 +73,14 @@ def json_flat(mappings, writers, select_tables):
         roll_number = None
         fact_id = None
 
-        for (base_prefix, prefix, event, value) in parse(jsonfile,
-                                                         multiple_values=True):  # without multiple_values flag our json is invalid
-
-            if roll_number is None and base_prefix == "rollNumber":
-                roll_number = value
-            if fact_id is None and base_prefix == "factId":
-                fact_id = value
+        for (base_prefix, prefix, event, value) in parse(jsonfile, multiple_values=True):
 
             if event == "string" or event == "number":
+                if roll_number is None and base_prefix == "rollNumber":
+                    roll_number = value
+                if fact_id is None and base_prefix == "factId":
+                    fact_id = value
+
                 if base_prefix in select_tables and base_prefix not in IDENTIFIERS:
                     # if leaf reached and the field is not yet populated, set the value
                     if mappings[base_prefix][prefix] is None:
