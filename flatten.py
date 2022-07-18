@@ -1,3 +1,5 @@
+import click
+
 from pathlib import Path
 import os
 import csv
@@ -11,6 +13,19 @@ JSON_FILE = "data/test_full.json"  # modify this to target JSON file
 OUT_DIR = Path("output/out2")  # modify this to desired output directory
 IDENTIFIERS = ["factId", "rollNumber"]
 CHUNK_SIZE = 10000
+
+
+def get_top_keys(json_file):
+    result = []
+    with open(json_file, "r") as f:
+        for (_, prefix, event, value) in parse(f, multiple_values=True):
+            if prefix == '' and event == 'map_key' and value not in IDENTIFIERS:
+                result.append(value)
+            elif prefix == '' and event == 'end_map' and value is None:
+                f.seek(0)  # read from beginning again
+                break
+
+    return result
 
 
 def create_mappings(select_tables):
@@ -56,10 +71,11 @@ def create_mappings(select_tables):
     return mappings
 
 
-def json_flat(mappings, writers, select_tables):
+def json_flat(file, mappings, writers, select_tables):
     """
     Flatten json and output to csv
 
+    :param file: JSON input file
     :param select_tables: selected tables to output
     :param mappings: mapping dict specifying structure of output files
     :param writers: list of output writers
@@ -68,7 +84,7 @@ def json_flat(mappings, writers, select_tables):
     count_rows = 0  # track number of rows written
     row_collector = defaultdict(list)
 
-    with open(JSON_FILE, "r", newline='') as jsonfile:
+    with open(file, "r", newline='') as jsonfile:
         for writer in writers:
             writer.writeheader()
 
@@ -128,26 +144,31 @@ def json_flat(mappings, writers, select_tables):
     return count_rows
 
 
-def main():
-    select_tables = []
+@click.command()
+@click.option('--file', default=JSON_FILE, help='Input JSON file')
+@click.option('--out', default=OUT_DIR, help='Output directory')
+@click.option('--chunk-size', default=500, help='Number of rows to write to each file at a time, for better performance')
+def main(file, out, chunk_size):
+    """Program that flattens JSON file and converts to CSV"""
+
+    tables = click.prompt(f'Top-level keys (press enter for all):', default=get_top_keys(file))
+    tables = tables.split(" ") if tables else get_top_keys(file)  # please add input validation
 
     start = time.time()
-    mappings = create_mappings(select_tables)
+    mappings = create_mappings(tables)
     end = time.time()
 
     total_time = (end - start)
     print(f"The total time to execute create_mappings is {total_time:.4f} s\n")
 
-    select_tables = list(mappings.keys()) if not select_tables else select_tables
-
     # create output directory
-    if not os.path.exists(OUT_DIR):
-        os.mkdir(OUT_DIR)
+    if not os.path.exists(out):
+        os.mkdir(out)
 
     # open all CSV files, creates them if they don't exist
     out_files = FileCollection()
     for key in mappings.keys():
-        out_files.open(key, OUT_DIR / f'{key}.csv', 'w')
+        out_files.open(key, os.path.join(out, f'{key}.csv'), 'w')
 
     # create array of csv.DictWriter objects to prepare for writing rows
     files = out_files.files
@@ -155,7 +176,7 @@ def main():
     writers = [csv.DictWriter(files[table], fieldnames=list(mappings[table].keys())) for table in mappings]
 
     start = time.time()  # track overall run time of flattening algorithm
-    count_rows = json_flat(mappings, writers, select_tables)
+    count_rows = json_flat(file, mappings, writers, tables)
     out_files.close()  # important - must close output files
     end = time.time()
 
