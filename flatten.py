@@ -232,14 +232,9 @@ def main(file, out, chunk_size):
 
     print("Flattening JSON...")
     start = time.time()  # track overall run time of flattening algorithm
-    count_rows = 0
-    try:
-        count_rows = json_flat(mappings, writers, tables, config)
-    except Exception as e:
-        click.echo(e, err=True)
-        pass
-
+    count_rows = json_flat(mappings, writers, tables, config)
     end = time.time()
+
     print(f"{out_files.size()} files written to {out}\n")
     out_files.close()  # important - must close output files
 
