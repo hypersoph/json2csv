@@ -4,11 +4,10 @@ import os
 import csv
 from collections import ChainMap, defaultdict
 import time
-import cmd
+from cmd import Cmd
 
 from utils import parse
 from helpers import FileCollection
-
 from config import Config
 
 
@@ -45,7 +44,7 @@ def create_mappings(select_tables, config):
                 elif prefix == '' and event == 'map_key' and value not in config.identifiers and value in select_tables:
                     mappings[value] = {}
                 elif prefix == '' and event == 'end_map' and value is None:
-                    # first pass done, initiate second pass
+                    # first pass done
                     f.seek(0)  # read from beginning again
                     break
         except Exception as e:
@@ -69,8 +68,8 @@ def create_mappings(select_tables, config):
             click.echo(e, err=True)
             pass
 
-    # for each table turn into ChainMap
-    # The ChainMap makes it easy to restore default values to None after every row
+    # for each table create ChainMap
+    # The ChainMap makes it easy to restore default values to None after every json line
     for table in mappings:
         mappings[table] = ChainMap({}, mappings[table])
 
@@ -157,14 +156,23 @@ def json_flat(mappings, writers, select_tables, config):
 
 
 @click.command()
-@click.option('--file', '-f', help='Input JSON file', required=True, type=str)
-@click.option('--out', '-o', help='Output directory', required=True, type=str)
-@click.option('--chunk-size', '-cs', default=500, help='Num rows to keep in memory before writing for each file')
+@click.option('--file', '-f', help='Input JSON file', required=True, type=click.Path(exists=True))
+@click.option('--out', '-o', help='Output directory', required=True, type=click.Path(file_okay=False))
+@click.option('--chunk-size', '-cs', type=int, default=500, help='# rows to keep in memory before writing for each file')
 def main(file, out, chunk_size):
     """Program that flattens JSON file and converts to CSV"""
+
+    # user input validation
+    if not file.endswith(".json"):
+        raise click.exceptions.BadOptionUsage('--file', "Input file extension is not .json")
+
+    # create output directory
+    if not os.path.exists(out):
+        os.mkdir(out)
+
     config = Config(file, out, chunk_size)
 
-    cli = cmd.Cmd()
+    cli = Cmd()
 
     print("Running flatten.py")
     print(f"Input file: {file}\n")
@@ -215,10 +223,6 @@ def main(file, out, chunk_size):
 
     total_time = (end - start)
     print(f"The total time to execute create_mappings is {total_time:.4f} s\n")
-
-    # create output directory
-    if not os.path.exists(out):
-        os.mkdir(out)
 
     # open all CSV files, creates them if they don't exist
     out_files = FileCollection()
