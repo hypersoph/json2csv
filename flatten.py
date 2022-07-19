@@ -6,30 +6,18 @@ from collections import ChainMap, defaultdict
 import time
 from cmd import Cmd
 
-from utils import parse
+from utils import *
 from helpers import FileCollection
 from config import Config
 
 
-def get_top_keys(json_file):
-    result = []
-    with open(json_file, "r") as f:
-        for (_, prefix, event, value) in parse(f, multiple_values=True):
-            if prefix == '' and event == 'map_key' and value:
-                result.append(value)
-            elif prefix == '' and event == 'end_map' and value is None:
-                f.seek(0)  # read from beginning again
-                break
-
-    return result
-
-
 def create_mappings(select_tables, config):
     """
-    - only needs to be done once for the duration of the program
-    - assumes that every json has the same top-level keys
+    Creates the mappings variable determining the headers of each output file
 
-    :param config:
+    Assumes that every json has the same top-level keys
+
+    :param config: configured parameters from user input
     :param select_tables: tables to output
     :return: mappings
     """
@@ -80,8 +68,7 @@ def json_flat(mappings, writers, select_tables, config):
     """
     Flatten json and output to csv
 
-
-    :param config:
+    :param config: User specified configuration
     :param select_tables: selected tables to output
     :param mappings: mapping dict specifying structure of output files
     :param writers: list of output writers
@@ -90,6 +77,7 @@ def json_flat(mappings, writers, select_tables, config):
 
     count_rows = 0  # track number of rows written
     row_collector = defaultdict(list)
+    row_collector_size = 0  # number of rows being kept in memory
 
     id_dict = {}  # keep track of specified identifier values e.g. factId and rollNumber
     for identifier in config.identifiers:
@@ -121,7 +109,6 @@ def json_flat(mappings, writers, select_tables, config):
 
                 # if reached end of a top-level json (i.e. finished one property)
                 elif prefix == '' and event == 'end_map' and value is None:
-                    count_rows = count_rows + 1
 
                     for table in mappings:
                         # add identifiers to row
@@ -130,12 +117,15 @@ def json_flat(mappings, writers, select_tables, config):
 
                         row = mappings[table].maps[0].copy()  # append copy so that row doesn't get reset with mappings
                         row_collector[table].append(row)
+                        row_collector_size = row_collector_size + 1
 
                         # reset map
                         mappings[table].maps[0].clear()
 
-                    # write all collected rows if num rows exceeds specified size
-                    if len(row_collector) >= config.chunk_size:
+                    count_rows = count_rows + 1
+
+                    # write all collected rows if total num rows exceeds specified size
+                    if row_collector_size >= config.chunk_size:
                         for writer, rows in zip(writers, row_collector):
                             writer.writerows(row_collector[rows])
 
@@ -158,7 +148,8 @@ def json_flat(mappings, writers, select_tables, config):
 @click.command()
 @click.option('--file', '-f', help='Input JSON file', required=True, type=click.Path(exists=True))
 @click.option('--out', '-o', help='Output directory', required=True, type=click.Path(file_okay=False))
-@click.option('--chunk-size', '-cs', type=int, default=500, help='# rows to keep in memory before writing for each file')
+@click.option('--chunk-size', '-cs', type=int, default=500,
+              help='# rows to keep in memory before writing for each file')
 def main(file, out, chunk_size):
     """Program that flattens JSON file and converts to CSV"""
 
@@ -175,9 +166,10 @@ def main(file, out, chunk_size):
     cli = Cmd()
 
     print("Running flatten.py")
-    print(f"Input file: {file}\n")
+    print(f"Input file: {file}")
+    print(f"Output path: {out}")  # note to self: fix this to show full filesystem path
 
-    print(f"Top-level keys:\n=================")
+    print(f"\nTop-level keys:\n=================")
     top_keys = get_top_keys(file)
     cli.columnize(top_keys, displaywidth=80)
 

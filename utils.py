@@ -2,6 +2,25 @@ import ijson
 from helpers import Stack
 
 
+def get_top_keys(json_file):
+    """
+    Get the top-level keys of the first json line in json_file
+
+    :param json_file:
+    :return: list of top-level keys from first json line
+    """
+    result = []
+    with open(json_file, "r") as f:
+        for (_, prefix, event, value) in parse(f, multiple_values=True):
+            if prefix == '' and event == 'map_key' and value:
+                result.append(value)
+            elif prefix == '' and event == 'end_map' and value is None:
+                f.seek(0)  # read from beginning again
+                break
+
+    return result
+
+
 def parse(file, **kwargs):
     """
     Generator based on `ijson.parse` function
