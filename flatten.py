@@ -84,20 +84,20 @@ def json_flat(mappings, writers, select_tables, config):
     count_rows = 0  # track number of rows written
     row_collector = defaultdict(list)
 
+    id_dict = {}  # keep track of specified identifier values e.g. factId and rollNumber
+    for identifier in config.identifiers:
+        id_dict[identifier] = None
+
     with open(config.json_file, "r", newline='') as jsonfile:
         for writer in writers:
             writer.writeheader()
 
-        roll_number = None
-        fact_id = None
-
         for (base_prefix, prefix, event, value) in parse(jsonfile, multiple_values=True):
 
             if event == "string" or event == "number":
-                if roll_number is None and base_prefix == "rollNumber":
-                    roll_number = value
-                if fact_id is None and base_prefix == "factId":
-                    fact_id = value
+                for id_key in id_dict:
+                    if id_dict[id_key] is None and base_prefix == id_key:
+                        id_dict[id_key] = value
 
                 if base_prefix in select_tables and base_prefix not in config.identifiers:
                     # if leaf reached and the field is not yet populated, set the value
@@ -115,11 +115,12 @@ def json_flat(mappings, writers, select_tables, config):
             elif prefix == '' and event == 'end_map' and value is None:
                 count_rows = count_rows + 1
 
-                # add roll number and fact id to row
                 for table in mappings:
-                    mappings[table]['rollNumber'] = roll_number
-                    mappings[table]['factId'] = fact_id
-                    row = mappings[table].maps[0].copy()  # append copy so that row doesn't get reset
+                    # add identifiers to row
+                    for id_key in id_dict:
+                        mappings[table][id_key] = id_dict[id_key]
+
+                    row = mappings[table].maps[0].copy()  # append copy so that row doesn't get reset with mappings
                     row_collector[table].append(row)
 
                     # reset map
@@ -133,8 +134,8 @@ def json_flat(mappings, writers, select_tables, config):
                     row_collector = defaultdict(list)
 
                 # reset variables
-                roll_number = None
-                fact_id = None
+                for id_key in id_dict:
+                    id_dict[id_key] = None
 
     # write any remaining rows
     if row_collector:
@@ -161,23 +162,38 @@ def main(file, out, chunk_size):
     top_keys = get_top_keys(file)
     cli.columnize(top_keys, displaywidth=80)
 
-    tables = click.prompt(f'\nEnter desired keys from the preceding list, separated by spaces (leave empty for all):\n',
-                          default='', show_default=False)
-    # please add input validation
+    input_valid = 0
+    tables = ''
+    while input_valid == 0:
+        tables = click.prompt(
+            f'\nEnter desired keys from the preceding list, separated by spaces (leave empty for all):\n',
+            default='', show_default=False)
 
-    if tables:
-        tables = tables.split(" ")
-    else:
-        tables = top_keys
+        tables = tables.split(" ") if tables else top_keys
+        # input valid if every table in tables is in top_keys
+        if set(tables).issubset(set(top_keys)):
+            input_valid = 1
+        else:
+            print(f"Error: {tables} is not in {top_keys}")
 
-    # todo: throw error if identifiers are not in the original keys
-    identifiers = click.prompt(f'Specify identifier keys separated by spaces (leave empty for defaults):',
-                               default=config.identifiers)  # add error if keys not in tables
-    identifiers = identifiers.split(" ")
+    input_valid = 0
+    identifiers = config.identifiers
+    while input_valid == 0:
+        identifiers = click.prompt(f'Specify identifier keys separated by spaces (leave empty for defaults):',
+                                   default=config.identifiers)  # add error if keys not in tables
+        identifiers = identifiers.split(" ")
+
+        if set(identifiers).issubset(set(top_keys)):
+            input_valid = 1
+        else:
+            print(f"Error: {identifiers} is not in {top_keys}")
+
     config.identifiers = identifiers
 
+    # remove any identifiers from tables var
     for idt in config.identifiers:
-        tables.remove(idt)
+        if idt in tables:
+            tables.remove(idt)
 
     start = time.time()
     mappings = create_mappings(tables, config)
