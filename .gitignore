@@ -1,4 +1,5 @@
-# sophie
+dump/
+.config
 .idea/
 data/
 output/

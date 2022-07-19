@@ -1,6 +1,6 @@
 class FileCollection:
     """
-    Represents a dict of all CSV files that can be closed simultaneously
+    Represents a dict of all CSV files with methods to open and close all
     """
 
     def __init__(self):
@@ -17,6 +17,9 @@ class FileCollection:
         """close all open files"""
         for file_key in self.files:
             self.files[file_key].close()
+
+    def size(self):
+        return len(self.files)
 
 
 class Stack:
