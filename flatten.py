@@ -2,7 +2,7 @@ import click
 
 import os
 import csv
-from collections import ChainMap, defaultdict
+from collections import ChainMap
 import time
 from cmd import Cmd
 
@@ -35,8 +35,8 @@ def create_mappings(select_tables, config):
                     # first pass done
                     f.seek(0)  # read from beginning again
                     break
-        except Exception as e:
-            click.echo(e, err=True)
+        except ijson.IncompleteJSONError as e:
+            click.echo(f"ijson.IncompleteJSONError {e}", err=True)
             pass
 
         # Add identifiers (e.g. factId and rollNumber) to each table
@@ -52,8 +52,8 @@ def create_mappings(select_tables, config):
                     # find table that matches the prefix and add value if value is an external node
                     if base_prefix in list(mappings.keys()):
                         mappings[base_prefix][prefix] = None
-        except Exception as e:
-            click.echo(e, err=True)
+        except ijson.IncompleteJSONError as e:
+            click.echo(f"ijson.IncompleteJSONError {e}", err=True)
             pass
 
     # for each table create ChainMap
@@ -133,8 +133,9 @@ def json_flat(mappings, writers, select_tables, config):
                     for id_key in id_dict:
                         id_dict[id_key] = None
         except ijson.IncompleteJSONError as e:
-            click.echo(e, err=True)
+            click.echo(f"ijson.IncompleteJSONError {e}", err=True)
             pass
+
     # write any remaining rows
     if row_collector.get_size() > 0:
         for writer, table in zip(writers, row_collector.get_tables()):

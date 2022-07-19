@@ -22,9 +22,18 @@ class RowCollector:
         self.inc_size()
 
     def get_rows(self, table):
+        """
+        Get list of rows corresponding to table
+        :param table:
+        :return:
+        """
         return self.collector[table]
 
     def get_tables(self):
+        """
+        Get list of the tables in collector
+        :return:
+        """
         return self.collector.keys()
 
     def get_size(self):
