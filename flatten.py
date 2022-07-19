@@ -52,10 +52,10 @@ def create_mappings(select_tables, config):
             click.echo(e, err=True)
             pass
 
-        # Add factId and rollNumber to each table
+        # Add identifiers (e.g. factId and rollNumber) to each table
         for table in mappings:
-            mappings[table]['factId'] = None
-            mappings[table]['rollNumber'] = None
+            for identifier in config.identifiers:
+                mappings[table][identifier] = None
 
         # Second pass: add all column names to mappings with default values
         # This pass goes through the entire json file to collect all possible columns
