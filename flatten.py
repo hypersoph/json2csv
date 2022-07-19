@@ -38,15 +38,19 @@ def create_mappings(select_tables, config):
 
     with open(config.json_file, "r") as f:
         # First pass: add all top-level keys using first json in file
-        for (_, prefix, event, value) in parse(f, multiple_values=True):
-            if not select_tables and prefix == '' and event == 'map_key' and value not in config.identifiers:
-                mappings[value] = {}
-            elif prefix == '' and event == 'map_key' and value not in config.identifiers and value in select_tables:
-                mappings[value] = {}
-            elif prefix == '' and event == 'end_map' and value is None:
-                # first pass done, initiate second pass
-                f.seek(0)  # read from beginning again
-                break
+        try:
+            for (_, prefix, event, value) in parse(f, multiple_values=True):
+                if not select_tables and prefix == '' and event == 'map_key' and value not in config.identifiers:
+                    mappings[value] = {}
+                elif prefix == '' and event == 'map_key' and value not in config.identifiers and value in select_tables:
+                    mappings[value] = {}
+                elif prefix == '' and event == 'end_map' and value is None:
+                    # first pass done, initiate second pass
+                    f.seek(0)  # read from beginning again
+                    break
+        except Exception as e:
+            click.echo(e, err=True)
+            pass
 
         # Add factId and rollNumber to each table
         for table in mappings:
@@ -55,11 +59,15 @@ def create_mappings(select_tables, config):
 
         # Second pass: add all column names to mappings with default values
         # This pass goes through the entire json file to collect all possible columns
-        for (base_prefix, prefix, event, value) in parse(f, multiple_values=True):
-            if event == "string" or event == "number":
-                # find table that matches the prefix and add value if value is an external node
-                if base_prefix in list(mappings.keys()):
-                    mappings[base_prefix][prefix] = None
+        try:
+            for (base_prefix, prefix, event, value) in parse(f, multiple_values=True):
+                if event == "string" or event == "number":
+                    # find table that matches the prefix and add value if value is an external node
+                    if base_prefix in list(mappings.keys()):
+                        mappings[base_prefix][prefix] = None
+        except Exception as e:
+            click.echo(e, err=True)
+            pass
 
     # for each table turn into ChainMap
     # The ChainMap makes it easy to restore default values to None after every row
@@ -92,51 +100,54 @@ def json_flat(mappings, writers, select_tables, config):
         for writer in writers:
             writer.writeheader()
 
-        for (base_prefix, prefix, event, value) in parse(jsonfile, multiple_values=True):
+        try:
+            for (base_prefix, prefix, event, value) in parse(jsonfile, multiple_values=True):
 
-            if event == "string" or event == "number":
-                for id_key in id_dict:
-                    if id_dict[id_key] is None and base_prefix == id_key:
-                        id_dict[id_key] = value
-
-                if base_prefix in select_tables and base_prefix not in config.identifiers:
-                    # if leaf reached and the field is not yet populated, set the value
-                    if mappings[base_prefix][prefix] is None:
-                        mappings[base_prefix][prefix] = value
-
-                    # else if leaf reached and field is already populated, create or append to array
-                    elif type(mappings[base_prefix][prefix]) == list:
-                        mappings[base_prefix][prefix] = [*mappings[base_prefix][prefix],
-                                                         value]  # unpack existing array into new one
-                    else:
-                        mappings[base_prefix][prefix] = [mappings[base_prefix][prefix], value]
-
-            # if reached end of a top-level json (i.e. finished one property)
-            elif prefix == '' and event == 'end_map' and value is None:
-                count_rows = count_rows + 1
-
-                for table in mappings:
-                    # add identifiers to row
+                if event == "string" or event == "number":
                     for id_key in id_dict:
-                        mappings[table][id_key] = id_dict[id_key]
+                        if id_dict[id_key] is None and base_prefix == id_key:
+                            id_dict[id_key] = value
 
-                    row = mappings[table].maps[0].copy()  # append copy so that row doesn't get reset with mappings
-                    row_collector[table].append(row)
+                    if base_prefix in select_tables and base_prefix not in config.identifiers:
+                        # if leaf reached and the field is not yet populated, set the value
+                        if mappings[base_prefix][prefix] is None:
+                            mappings[base_prefix][prefix] = value
 
-                    # reset map
-                    mappings[table].maps[0].clear()
+                        # else if leaf reached and field is already populated, create or append to array
+                        elif type(mappings[base_prefix][prefix]) == list:
+                            mappings[base_prefix][prefix] = [*mappings[base_prefix][prefix],
+                                                             value]  # unpack existing array into new one
+                        else:
+                            mappings[base_prefix][prefix] = [mappings[base_prefix][prefix], value]
 
-                # write all collected rows if num rows exceeds specified size
-                if len(row_collector) >= config.chunk_size:
-                    for writer, rows in zip(writers, row_collector):
-                        writer.writerows(row_collector[rows])
+                # if reached end of a top-level json (i.e. finished one property)
+                elif prefix == '' and event == 'end_map' and value is None:
+                    count_rows = count_rows + 1
 
-                    row_collector = defaultdict(list)
+                    for table in mappings:
+                        # add identifiers to row
+                        for id_key in id_dict:
+                            mappings[table][id_key] = id_dict[id_key]
 
-                # reset variables
-                for id_key in id_dict:
-                    id_dict[id_key] = None
+                        row = mappings[table].maps[0].copy()  # append copy so that row doesn't get reset with mappings
+                        row_collector[table].append(row)
 
+                        # reset map
+                        mappings[table].maps[0].clear()
+
+                    # write all collected rows if num rows exceeds specified size
+                    if len(row_collector) >= config.chunk_size:
+                        for writer, rows in zip(writers, row_collector):
+                            writer.writerows(row_collector[rows])
+
+                        row_collector = defaultdict(list)
+
+                    # reset variables
+                    for id_key in id_dict:
+                        id_dict[id_key] = None
+        except Exception as e:
+            click.echo(e, err=True)
+            pass
     # write any remaining rows
     if row_collector:
         for writer, rows in zip(writers, row_collector):
@@ -174,7 +185,7 @@ def main(file, out, chunk_size):
         if set(tables).issubset(set(top_keys)):
             input_valid = 1
         else:
-            print(f"Error: {tables} is not in {top_keys}")
+            click.echo(f"Error: {tables} is not in {top_keys}", err=True)
 
     input_valid = 0
     identifiers = config.identifiers
@@ -186,7 +197,7 @@ def main(file, out, chunk_size):
         if set(identifiers).issubset(set(top_keys)):
             input_valid = 1
         else:
-            print(f"Error: {identifiers} is not in {top_keys}")
+            click.echo(f"Error: {identifiers} is not in {top_keys}", err=True)
 
     config.identifiers = identifiers
 
@@ -194,6 +205,8 @@ def main(file, out, chunk_size):
     for idt in config.identifiers:
         if idt in tables:
             tables.remove(idt)
+
+    click.clear()
 
     print("Creating mappings...")
     start = time.time()
@@ -219,14 +232,20 @@ def main(file, out, chunk_size):
 
     print("Flattening JSON...")
     start = time.time()  # track overall run time of flattening algorithm
-    count_rows = json_flat(mappings, writers, tables, config)
+    count_rows = 0
+    try:
+        count_rows = json_flat(mappings, writers, tables, config)
+    except Exception as e:
+        click.echo(e, err=True)
+        pass
+
     end = time.time()
     print(f"{out_files.size()} files written to {out}\n")
     out_files.close()  # important - must close output files
 
     total_time = (end - start)
-    print(f"The total number of rows is: {count_rows}")
-    print(f"The average time per row is: {total_time * 1000 / count_rows:.4f} ms")
+    print(f"Number of json lines written in each file is: {count_rows}")
+    print(f"The average time per json line is: {total_time * 1000 / count_rows:.4f} ms")
     print(f"The total time to execute json_flat is: {total_time:.4f} s")
 
 
