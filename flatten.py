@@ -7,7 +7,7 @@ import time
 from cmd import Cmd
 
 from utils import *
-from helpers import FileCollection
+from helpers import *
 from config import Config
 
 
@@ -76,8 +76,7 @@ def json_flat(mappings, writers, select_tables, config):
     """
 
     count_rows = 0  # track number of rows written
-    row_collector = defaultdict(list)
-    row_collector_size = 0  # number of rows being kept in memory
+    row_collector = RowCollector()
 
     id_dict = {}  # keep track of specified identifier values e.g. factId and rollNumber
     for identifier in config.identifiers:
@@ -116,8 +115,7 @@ def json_flat(mappings, writers, select_tables, config):
                             mappings[table][id_key] = id_dict[id_key]
 
                         row = mappings[table].maps[0].copy()  # append copy so that row doesn't get reset with mappings
-                        row_collector[table].append(row)
-                        row_collector_size = row_collector_size + 1
+                        row_collector.append(table, row)
 
                         # reset map
                         mappings[table].maps[0].clear()
@@ -125,22 +123,24 @@ def json_flat(mappings, writers, select_tables, config):
                     count_rows = count_rows + 1
 
                     # write all collected rows if total num rows exceeds specified size
-                    if row_collector_size >= config.chunk_size:
-                        for writer, rows in zip(writers, row_collector):
-                            writer.writerows(row_collector[rows])
+                    if row_collector.get_size() >= config.chunk_size:
+                        for writer, table in zip(writers, row_collector.get_tables()):
+                            writer.writerows(row_collector.get_rows(table))
 
-                        row_collector = defaultdict(list)
+                        row_collector.reset()
 
                     # reset variables
                     for id_key in id_dict:
                         id_dict[id_key] = None
-        except Exception as e:
+        except ijson.IncompleteJSONError as e:
             click.echo(e, err=True)
             pass
     # write any remaining rows
-    if row_collector:
-        for writer, rows in zip(writers, row_collector):
-            writer.writerows(row_collector[rows])
+    if row_collector.get_size() > 0:
+        for writer, table in zip(writers, row_collector.get_tables()):
+            writer.writerows(row_collector.get_rows(table))
+
+        row_collector.reset()
 
     return count_rows
 

@@ -1,3 +1,50 @@
+from collections import defaultdict
+
+
+class RowCollector:
+    """
+    Helper class for accumulating rows from json flattening before writing to file
+
+    A defaultdict mapping tables to a list of parsed rows
+    """
+    collector = defaultdict(list)
+    size = 0  # total number of rows being kept in collector
+
+    def append(self, table, row):
+        """
+        Append a row to its corresponding table
+
+        :param table:
+        :param row:
+        :return:
+        """
+        self.get_rows(table).append(row)
+        self.inc_size()
+
+    def get_rows(self, table):
+        return self.collector[table]
+
+    def get_tables(self):
+        return self.collector.keys()
+
+    def get_size(self):
+        """
+        Get size attribute of the RowCollector object
+        :return:
+        """
+        return self.size
+
+    def inc_size(self):
+        """
+        Increment the size attribute of the RowCollector object
+        """
+        self.size = self.size + 1
+
+    def reset(self):
+        self.collector = defaultdict(list)
+        self.size = 0
+
+
 class FileCollection:
     """
     Represents a dict of all CSV files with methods to open and close all
