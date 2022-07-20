@@ -2,7 +2,7 @@ class Config:
     json_file = ""
     out_dir = ""
     identifiers = "factId rollNumber"
-    chunk_size = 500
+    chunk_size = 0
 
     def __init__(self, json_file, out_dir, chunk_size):
         self.json_file = json_file
