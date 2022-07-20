@@ -20,6 +20,7 @@ class Flatten:
         """
         Flatten json and output to csv
 
+        :param files:
         :param config: User specified configuration
         :param select_tables: selected tables to output
         :param mappings: mapping dict specifying structure of output files
@@ -37,7 +38,7 @@ class Flatten:
                 writer.writeheader()
 
             try:
-                pbar = tqdm(total=Mapping.total_count_json, desc='Flattening JSON...')
+                pbar = tqdm(total=Mapping.total_count_json, desc='Flattening JSON')
                 parser = parse(jsonfile, multiple_values=True)
                 for (base_prefix, prefix, event, value) in parser:
 
@@ -82,6 +83,7 @@ class Flatten:
                                 writer.writerows(row_buffer.get_rows(table))
 
                             row_buffer.reset()
+                            files.flush()
 
                         # reset variables
                         for id_key in id_dict:
@@ -166,12 +168,7 @@ def main(file, out, chunk_size):
 
     click.clear()
 
-    print("Creating mappings...")
-    start = time.time()
     mappings = Mapping.create_mappings(tables, config)
-    end = time.time()
-    total_time = (end - start)
-    click.echo(f"The total time to execute create_mappings is {total_time:.4f} s\n")
     click.echo(f"The total number of json lines is: {Mapping.total_count_json}")
 
     # open all CSV files, creates them if they don't exist

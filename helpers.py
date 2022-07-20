@@ -74,6 +74,10 @@ class FileHandler:
         for file_key in self.files:
             self.files[file_key].close()
 
+    def flush(self):
+        for file_key in self.files:
+            self.files[file_key].flush()
+
     def size(self):
         return len(self.files)
 

@@ -46,7 +46,7 @@ class Mapping:
             # Second pass: add all column names to mappings with default values
             # This pass goes through the entire json file to collect all possible columns
             try:
-                for (base_prefix, prefix, event, value) in tqdm(parse(f, multiple_values=True)):
+                for (base_prefix, prefix, event, value) in tqdm(parse(f, multiple_values=True), desc="Creating mappings"):
                     if event == "string" or event == "number":
                         # find table that matches the prefix and add value if value is an external node
                         if base_prefix not in config.identifiers:
