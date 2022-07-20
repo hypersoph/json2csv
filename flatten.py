@@ -2,71 +2,14 @@ import click
 
 import os
 import csv
-from collections import ChainMap
+
 import time
 from cmd import Cmd
 
 from utils import *
 from helpers import *
 from config import Config
-
-
-def create_mappings(select_tables, config):
-    """
-    Creates the mappings variable determining the headers of each output file
-
-    Assumes that every json has the same top-level keys
-
-    :param config: configured parameters from user input
-    :param select_tables: tables to output
-    :return: mappings
-    """
-    mappings = {}
-    count_json = 0  # total count of json lines in file
-
-    with open(config.json_file, "r") as f:
-        # First pass: add all top-level keys using first json in file
-        try:
-            for (_, prefix, event, value) in parse(f, multiple_values=True):
-                if not select_tables and prefix == '' and event == 'map_key' and value not in config.identifiers:
-                    mappings[value] = {}
-                elif prefix == '' and event == 'map_key' and value not in config.identifiers and value in select_tables:
-                    mappings[value] = {}
-                elif prefix == '' and event == 'end_map' and value is None:
-                    # first pass done
-                    f.seek(0)  # read from beginning again
-                    break
-        except ijson.IncompleteJSONError as e:
-            click.echo(f"ijson.IncompleteJSONError {e}", err=True)
-            pass
-
-        # Add identifiers (e.g. factId and rollNumber) to each table
-        for table in mappings:
-            for identifier in config.identifiers:
-                mappings[table][identifier] = None
-
-        # Second pass: add all column names to mappings with default values
-        # This pass goes through the entire json file to collect all possible columns
-        try:
-            for (base_prefix, prefix, event, value) in parse(f, multiple_values=True):
-                if event == "string" or event == "number":
-                    # find table that matches the prefix and add value if value is an external node
-                    if base_prefix not in config.identifiers:
-                        mappings[base_prefix][prefix] = None
-                elif prefix == '' and event == 'end_map' and value is None:
-                    count_json = count_json + 1
-        except ijson.IncompleteJSONError as e:
-            click.echo(f"ijson.IncompleteJSONError {e}", err=True)
-            pass
-
-    # for each table create ChainMap
-    # The ChainMap makes it easy to restore default values to None after every json line
-    for table in mappings:
-        mappings[table] = ChainMap({}, mappings[table])
-
-    click.echo(f"Total count of json lines: {count_json}")
-
-    return mappings
+from mapping import *
 
 
 def json_flat(mappings, writers, select_tables, config):
@@ -216,11 +159,13 @@ def main(file, out, chunk_size):
 
     print("Creating mappings...")
     start = time.time()
-    mappings = create_mappings(tables, config)
+    mappings = Mapping.create_mappings(tables, config)
     end = time.time()
 
     total_time = (end - start)
     print(f"The total time to execute create_mappings is {total_time:.4f} s\n")
+
+    click.echo(f"The total number of json lines is: {Mapping.count_json}")
 
     # open all CSV files, creates them if they don't exist
     out_files = FileCollection()
