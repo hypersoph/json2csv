@@ -12,91 +12,92 @@ from mapping import *
 from tqdm import tqdm
 
 
-def json_flat(mappings, writers, select_tables, config):
-    """
-    Flatten json and output to csv
-
-    :param config: User specified configuration
-    :param select_tables: selected tables to output
-    :param mappings: mapping dict specifying structure of output files
-    :param writers: list of output writers
-    :return: count of json lines
-    """
-
+class Flatten:
     count_rows = 0  # track number of rows written
-    row_buffer = RowBuffer()
 
-    id_dict = {}  # keep track of specified identifier values e.g. factId and rollNumber
-    for identifier in config.identifiers:
-        id_dict[identifier] = None
+    @staticmethod
+    def json_flat(mappings, writers, select_tables, config):
+        """
+        Flatten json and output to csv
 
-    with open(config.json_file, "r", newline='') as jsonfile:
-        for writer in writers:
-            writer.writeheader()
+        :param config: User specified configuration
+        :param select_tables: selected tables to output
+        :param mappings: mapping dict specifying structure of output files
+        :param writers: list of output writers
+        """
 
-        try:
-            pbar = tqdm(total=Mapping.total_count_json, desc='Flattening JSON...')
-            parser = parse(jsonfile, multiple_values=True)
-            for (base_prefix, prefix, event, value) in parser:
+        row_buffer = RowBuffer()
 
-                if event == "string" or event == "number":
-                    for id_key in id_dict:
-                        if id_dict[id_key] is None and base_prefix == id_key:
-                            id_dict[id_key] = value
+        id_dict = {}  # keep track of specified identifier values e.g. factId and rollNumber
+        for identifier in config.identifiers:
+            id_dict[identifier] = None
 
-                    if base_prefix in select_tables and base_prefix not in config.identifiers:
-                        # if leaf reached and the field is not yet populated, set the value
-                        if mappings[base_prefix][prefix] is None:
-                            mappings[base_prefix][prefix] = value
+        with open(config.json_file, "r", newline='') as jsonfile:
+            for writer in writers:
+                writer.writeheader()
 
-                        # else if leaf reached and field is already populated, create or append to array
-                        elif type(mappings[base_prefix][prefix]) == list:
-                            mappings[base_prefix][prefix] = [*mappings[base_prefix][prefix],
-                                                             value]  # unpack existing array into new one
-                        else:
-                            mappings[base_prefix][prefix] = [mappings[base_prefix][prefix], value]
+            try:
+                pbar = tqdm(total=Mapping.total_count_json, desc='Flattening JSON...')
+                parser = parse(jsonfile, multiple_values=True)
+                for (base_prefix, prefix, event, value) in parser:
 
-                # if reached end of a top-level json (i.e. finished one property)
-                elif prefix == '' and event == 'end_map' and value is None:
-
-                    for table in mappings:
-                        # add identifiers to row
+                    if event == "string" or event == "number":
                         for id_key in id_dict:
-                            mappings[table][id_key] = id_dict[id_key]
+                            if id_dict[id_key] is None and base_prefix == id_key:
+                                id_dict[id_key] = value
 
-                        row = mappings[table].maps[0].copy()  # append copy so that row doesn't get reset with mappings
-                        row_buffer.append(table, row)
+                        if base_prefix in select_tables and base_prefix not in config.identifiers:
+                            # if leaf reached and the field is not yet populated, set the value
+                            if mappings[base_prefix][prefix] is None:
+                                mappings[base_prefix][prefix] = value
 
-                        # reset map
-                        mappings[table].maps[0].clear()
+                            # else if leaf reached and field is already populated, create or append to array
+                            elif type(mappings[base_prefix][prefix]) == list:
+                                mappings[base_prefix][prefix] = [*mappings[base_prefix][prefix],
+                                                                 value]  # unpack existing array into new one
+                            else:
+                                mappings[base_prefix][prefix] = [mappings[base_prefix][prefix], value]
 
-                    count_rows = count_rows + 1
-                    pbar.update(1)
+                    # if reached end of a top-level json (i.e. finished one property)
+                    elif prefix == '' and event == 'end_map' and value is None:
 
-                    # write all collected rows if total num rows exceeds specified size
-                    if row_buffer.get_size() >= config.chunk_size:
-                        for writer, table in zip(writers, row_buffer.get_tables()):
-                            writer.writerows(row_buffer.get_rows(table))
+                        for table in mappings:
+                            # add identifiers to row
+                            for id_key in id_dict:
+                                mappings[table][id_key] = id_dict[id_key]
 
-                        row_buffer.reset()
+                            row = mappings[table].maps[
+                                0].copy()  # append copy so that row doesn't get reset with mappings
+                            row_buffer.append(table, row)
 
-                    # reset variables
-                    for id_key in id_dict:
-                        id_dict[id_key] = None
+                            # reset map
+                            mappings[table].maps[0].clear()
 
-            pbar.close()
-        except ijson.IncompleteJSONError as e:
-            click.echo(f"ijson.IncompleteJSONError {e}", err=True)
-            pass
+                        Flatten.count_rows = Flatten.count_rows + 1
+                        pbar.update(1)
 
-    # write any remaining rows
-    if row_buffer.get_size() > 0:
-        for writer, table in zip(writers, row_buffer.get_tables()):
-            writer.writerows(row_buffer.get_rows(table))
+                        # write all collected rows if total num rows exceeds specified size
+                        if row_buffer.get_size() >= config.chunk_size:
+                            for writer, table in zip(writers, row_buffer.get_tables()):
+                                writer.writerows(row_buffer.get_rows(table))
 
-        row_buffer.reset()
+                            row_buffer.reset()
 
-    return count_rows
+                        # reset variables
+                        for id_key in id_dict:
+                            id_dict[id_key] = None
+
+                pbar.close()
+            except ijson.IncompleteJSONError as e:
+                click.echo(f"ijson.IncompleteJSONError {e}", err=True)
+                pass
+
+        # write any remaining rows
+        if row_buffer.get_size() > 0:
+            for writer, table in zip(writers, row_buffer.get_tables()):
+                writer.writerows(row_buffer.get_rows(table))
+
+            row_buffer.reset()
 
 
 @click.command()
@@ -184,16 +185,15 @@ def main(file, out, chunk_size):
                for table in mappings]
 
     start = time.time()  # track overall run time of flattening algorithm
-    count_rows = json_flat(mappings, writers, tables, config)
+    Flatten.json_flat(mappings, writers, tables, config)
     end = time.time()
 
     print(f"{out_files.size()} files written to {out}\n")
     out_files.close()  # important - must close output files
 
     total_time = (end - start)
-    print(f"Number of json lines written in each file is: {count_rows}")
-    print(f"The average time per json line is: {total_time * 1000 / count_rows:.4f} ms")
-    print(f"The total time to execute json_flat is: {total_time:.4f} s")
+    print(f"Number of json lines written into each file is: {Flatten.count_rows}")
+    print(f"The average time per json line is: {total_time * 1000 / Flatten.count_rows:.4f} ms")
 
 
 if __name__ == "__main__":
