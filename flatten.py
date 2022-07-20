@@ -22,6 +22,7 @@ def create_mappings(select_tables, config):
     :return: mappings
     """
     mappings = {}
+    count_json = 0  # total count of json lines in file
 
     with open(config.json_file, "r") as f:
         # First pass: add all top-level keys using first json in file
@@ -50,8 +51,10 @@ def create_mappings(select_tables, config):
             for (base_prefix, prefix, event, value) in parse(f, multiple_values=True):
                 if event == "string" or event == "number":
                     # find table that matches the prefix and add value if value is an external node
-                    if base_prefix in list(mappings.keys()):
+                    if base_prefix not in config.identifiers:
                         mappings[base_prefix][prefix] = None
+                elif prefix == '' and event == 'end_map' and value is None:
+                    count_json = count_json + 1
         except ijson.IncompleteJSONError as e:
             click.echo(f"ijson.IncompleteJSONError {e}", err=True)
             pass
@@ -60,6 +63,8 @@ def create_mappings(select_tables, config):
     # The ChainMap makes it easy to restore default values to None after every json line
     for table in mappings:
         mappings[table] = ChainMap({}, mappings[table])
+
+    click.echo(f"Total count of json lines: {count_json}")
 
     return mappings
 
@@ -76,7 +81,7 @@ def json_flat(mappings, writers, select_tables, config):
     """
 
     count_rows = 0  # track number of rows written
-    row_collector = RowCollector()
+    row_buffer = RowBuffer()
 
     id_dict = {}  # keep track of specified identifier values e.g. factId and rollNumber
     for identifier in config.identifiers:
@@ -115,7 +120,7 @@ def json_flat(mappings, writers, select_tables, config):
                             mappings[table][id_key] = id_dict[id_key]
 
                         row = mappings[table].maps[0].copy()  # append copy so that row doesn't get reset with mappings
-                        row_collector.append(table, row)
+                        row_buffer.append(table, row)
 
                         # reset map
                         mappings[table].maps[0].clear()
@@ -123,11 +128,11 @@ def json_flat(mappings, writers, select_tables, config):
                     count_rows = count_rows + 1
 
                     # write all collected rows if total num rows exceeds specified size
-                    if row_collector.get_size() >= config.chunk_size:
-                        for writer, table in zip(writers, row_collector.get_tables()):
-                            writer.writerows(row_collector.get_rows(table))
+                    if row_buffer.get_size() >= config.chunk_size:
+                        for writer, table in zip(writers, row_buffer.get_tables()):
+                            writer.writerows(row_buffer.get_rows(table))
 
-                        row_collector.reset()
+                        row_buffer.reset()
 
                     # reset variables
                     for id_key in id_dict:
@@ -137,11 +142,11 @@ def json_flat(mappings, writers, select_tables, config):
             pass
 
     # write any remaining rows
-    if row_collector.get_size() > 0:
-        for writer, table in zip(writers, row_collector.get_tables()):
-            writer.writerows(row_collector.get_rows(table))
+    if row_buffer.get_size() > 0:
+        for writer, table in zip(writers, row_buffer.get_tables()):
+            writer.writerows(row_buffer.get_rows(table))
 
-        row_collector.reset()
+        row_buffer.reset()
 
     return count_rows
 
@@ -220,12 +225,12 @@ def main(file, out, chunk_size):
     # open all CSV files, creates them if they don't exist
     out_files = FileCollection()
     for key in mappings.keys():
-        out_files.open(key, os.path.join(out, f'{key}.csv'), 'w')
+        out_files.open(key, file=os.path.join(out, f'{key}.csv'), mode='w', encoding='utf-8', newline='')
 
     # create array of csv.DictWriter objects to prepare for writing rows
     files = out_files.files
     # note - The order of writers is the same as the order of top-level keys in mappings
-    writers = [csv.DictWriter(files[table], fieldnames=list(mappings[table].keys())) for table in mappings]
+    writers = [csv.DictWriter(files[table], fieldnames=list(mappings[table].keys()), extrasaction='ignore') for table in mappings]
 
     print("Flattening JSON...")
     start = time.time()  # track overall run time of flattening algorithm

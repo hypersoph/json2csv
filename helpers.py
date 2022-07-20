@@ -1,7 +1,7 @@
 from collections import defaultdict
 
 
-class RowCollector:
+class RowBuffer:
     """
     Helper class for accumulating rows from json flattening before writing to file
 
@@ -63,9 +63,9 @@ class FileCollection:
         self.files = {}
         self.__index = 0
 
-    def open(self, file_key, *open_args):
+    def open(self, file_key, **kwargs):
         """open file and add to files dict"""
-        f = open(*open_args, newline='')
+        f = open(**kwargs)
         self.files[file_key] = f
         return f
 

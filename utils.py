@@ -30,7 +30,7 @@ def parse(file, **kwargs):
     {
         "a" : ["one", "two", "three"]
     }
-    The value "one" would have the prefix `a.0` instead of `a.item` as ijson.parse would give.
+    The value "one" would have the prefix `a.0` instead of `a.item` as `ijson.parse` would give.
     Similarly, "two" would have the prefix `a.1` and "three" `a.2`.
 
     The base prefix for this would be `a`
