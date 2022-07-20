@@ -1,5 +1,3 @@
-import click
-
 import os
 import csv
 
@@ -10,6 +8,8 @@ from utils import *
 from helpers import *
 from config import Config
 from mapping import *
+
+from tqdm import tqdm
 
 
 def json_flat(mappings, writers, select_tables, config):
@@ -35,7 +35,9 @@ def json_flat(mappings, writers, select_tables, config):
             writer.writeheader()
 
         try:
-            for (base_prefix, prefix, event, value) in parse(jsonfile, multiple_values=True):
+            pbar = tqdm(total=Mapping.total_count_json, desc='Flattening JSON...')
+            parser = parse(jsonfile, multiple_values=True)
+            for (base_prefix, prefix, event, value) in parser:
 
                 if event == "string" or event == "number":
                     for id_key in id_dict:
@@ -69,6 +71,7 @@ def json_flat(mappings, writers, select_tables, config):
                         mappings[table].maps[0].clear()
 
                     count_rows = count_rows + 1
+                    pbar.update(1)
 
                     # write all collected rows if total num rows exceeds specified size
                     if row_buffer.get_size() >= config.chunk_size:
@@ -80,6 +83,8 @@ def json_flat(mappings, writers, select_tables, config):
                     # reset variables
                     for id_key in id_dict:
                         id_dict[id_key] = None
+
+            pbar.close()
         except ijson.IncompleteJSONError as e:
             click.echo(f"ijson.IncompleteJSONError {e}", err=True)
             pass
@@ -161,11 +166,9 @@ def main(file, out, chunk_size):
     start = time.time()
     mappings = Mapping.create_mappings(tables, config)
     end = time.time()
-
     total_time = (end - start)
-    print(f"The total time to execute create_mappings is {total_time:.4f} s\n")
-
-    click.echo(f"The total number of json lines is: {Mapping.count_json}")
+    click.echo(f"The total time to execute create_mappings is {total_time:.4f} s\n")
+    click.echo(f"The total number of json lines is: {Mapping.total_count_json}")
 
     # open all CSV files, creates them if they don't exist
     out_files = FileCollection()
@@ -175,9 +178,11 @@ def main(file, out, chunk_size):
     # create array of csv.DictWriter objects to prepare for writing rows
     files = out_files.files
     # note - The order of writers is the same as the order of top-level keys in mappings
-    writers = [csv.DictWriter(files[table], fieldnames=list(mappings[table].keys()), extrasaction='ignore') for table in mappings]
+    writers = [csv.DictWriter(files[table],
+                              fieldnames=list(mappings[table].keys()),
+                              extrasaction='ignore')
+               for table in mappings]
 
-    print("Flattening JSON...")
     start = time.time()  # track overall run time of flattening algorithm
     count_rows = json_flat(mappings, writers, tables, config)
     end = time.time()

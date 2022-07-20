@@ -6,7 +6,7 @@ from collections import ChainMap
 
 
 class Mapping:
-    count_json = 0  # total count of json lines in file
+    total_count_json = 0  # total count of json lines in file
 
     @staticmethod
     def create_mappings(select_tables, config):
@@ -51,7 +51,7 @@ class Mapping:
                         if base_prefix not in config.identifiers:
                             mappings[base_prefix][prefix] = None
                     elif prefix == '' and event == 'end_map' and value is None:
-                        Mapping.count_json = Mapping.count_json + 1
+                        Mapping.total_count_json = Mapping.total_count_json + 1
             except IncompleteJSONError as e:
                 click.echo(f"ijson.IncompleteJSONError {e}", err=True)
                 pass
