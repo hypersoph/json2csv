@@ -16,7 +16,7 @@ class Flatten:
     count_rows = 0  # track number of rows written
 
     @staticmethod
-    def json_flat(mappings, writers, select_tables, config):
+    def json_flat(mappings, writers, files, select_tables, config):
         """
         Flatten json and output to csv
 
@@ -87,17 +87,20 @@ class Flatten:
                         for id_key in id_dict:
                             id_dict[id_key] = None
 
-                pbar.close()
             except ijson.IncompleteJSONError as e:
                 click.echo(f"ijson.IncompleteJSONError {e}", err=True)
                 pass
+            finally:
+                pbar.close()
 
-        # write any remaining rows
-        if row_buffer.get_size() > 0:
-            for writer, table in zip(writers, row_buffer.get_tables()):
-                writer.writerows(row_buffer.get_rows(table))
+                # write any remaining rows
+                if row_buffer.get_size() > 0:
+                    for writer, table in zip(writers, row_buffer.get_tables()):
+                        writer.writerows(row_buffer.get_rows(table))
 
-            row_buffer.reset()
+                    row_buffer.reset()
+
+                files.close()
 
 
 @click.command()
@@ -172,7 +175,7 @@ def main(file, out, chunk_size):
     click.echo(f"The total number of json lines is: {Mapping.total_count_json}")
 
     # open all CSV files, creates them if they don't exist
-    out_files = FileCollection()
+    out_files = FileHandler()
     for key in mappings.keys():
         out_files.open(key, file=os.path.join(out, f'{key}.csv'), mode='w', encoding='utf-8', newline='')
 
@@ -185,11 +188,10 @@ def main(file, out, chunk_size):
                for table in mappings]
 
     start = time.time()  # track overall run time of flattening algorithm
-    Flatten.json_flat(mappings, writers, tables, config)
+    Flatten.json_flat(mappings, writers, out_files, tables, config)
     end = time.time()
 
     print(f"{out_files.size()} files written to {out}\n")
-    out_files.close()  # important - must close output files
 
     total_time = (end - start)
     print(f"Number of json lines written into each file is: {Flatten.count_rows}")

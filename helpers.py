@@ -54,7 +54,7 @@ class RowBuffer:
         self.size = 0
 
 
-class FileCollection:
+class FileHandler:
     """
     Represents a dict of all CSV files with methods to open and close all
     """
