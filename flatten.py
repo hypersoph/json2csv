@@ -64,7 +64,7 @@ class Flatten:
 
                         for table in mappings:
                             # add identifiers to row
-                            # append copy so that row doesn't get reset with mappings
+                            # append copies so that row doesn't get reset with mappings and id_dict dictionaries
                             row = blist(id_dict.values()) + blist(mappings[table].maps[0].values())
                             row_buffer.append(table, row)
 
@@ -86,9 +86,6 @@ class Flatten:
                         for id_key in id_dict:
                             id_dict[id_key] = None
 
-            except ijson.IncompleteJSONError as e:
-                click.echo(f"ijson.IncompleteJSONError {e}", err=True)
-                pass
             finally:
                 pbar.close()
 
@@ -183,15 +180,17 @@ def main(file, out, chunk_size, debug):
     # note - The order of writers is the same as the order of top-level keys in mappings
     writers = [csv.writer(files[table]) for table in mappings]
 
-    start = time.time()  # track overall run time of flattening algorithm
-    Flatten.json_flat(mappings, writers, out_files, tables, config)
-    end = time.time()
+    try:
+        start = time.time()  # track overall run time of flattening algorithm
+        Flatten.json_flat(mappings, writers, out_files, tables, config)
+    finally:
+        end = time.time()
 
-    print(f"{out_files.size()} files written to {out}\n")
+        print(f"{out_files.size()} files written to {out}\n")
 
-    total_time = (end - start)
-    print(f"Number of json lines written into each file is: {Flatten.count_rows}")
-    print(f"The average time per json line is: {total_time * 1000 / Flatten.count_rows:.4f} ms")
+        total_time = (end - start)
+        print(f"Number of json lines written into each file is: {Flatten.count_rows}")
+        print(f"The average time per json line is: {total_time * 1000 / Flatten.count_rows:.4f} ms")
 
 
 if __name__ == "__main__":
