@@ -33,7 +33,7 @@ class Flatten:
         for identifier in config.identifiers:
             id_dict[identifier] = None
 
-        with open(config.json_file, "r", newline='') as jsonfile:
+        with open(config.json_file, "rb") as jsonfile:
             for writer, table in zip(writers, mappings):
                 writer.writerow(list(mappings[table].keys()))
 
@@ -64,11 +64,8 @@ class Flatten:
 
                         for table in mappings:
                             # add identifiers to row
-                            for id_key in id_dict:
-                                mappings[table][id_key] = id_dict[id_key]
-
                             # append copy so that row doesn't get reset with mappings
-                            row = list(mappings[table].maps[0].values())
+                            row = blist(id_dict.values()) + blist(mappings[table].maps[0].values())
                             row_buffer.append(table, row)
 
                             # reset map
@@ -110,7 +107,8 @@ class Flatten:
 @click.option('--out', '-o', help='Output directory', required=True, type=click.Path(file_okay=False))
 @click.option('--chunk-size', '-cs', type=int, default=50000,
               help='# rows to keep in memory before writing for each file')
-def main(file, out, chunk_size):
+@click.option('--debug', is_flag=True, help='Enables printing of additional info for debugging')
+def main(file, out, chunk_size, debug):
     """Program that flattens JSON file and converts to CSV"""
 
     # user input validation
@@ -125,11 +123,15 @@ def main(file, out, chunk_size):
 
     cli = Cmd()
 
-    print("Running flatten.py")
-    print(f"Input file: {file}")
-    print(f"Output path: {out}")  # note to self: fix this to show full filesystem path
+    click.echo("Running flatten.py")
+    click.echo(f"Input file: {file}")
+    click.echo(f"Output path: {out}")  # note to self: fix this to show full filesystem path
 
-    print(f"\nTop-level keys:\n=================")
+    if debug:
+        click.echo("\nDEBUG INFO")
+        click.echo(f"Using ijson backend: {ijson.backend}")
+
+    click.echo(f"\nTop-level keys:\n=================")
     top_keys = get_top_keys(file)
     cli.columnize(top_keys, displaywidth=80)
 
