@@ -1,4 +1,5 @@
 from collections import defaultdict
+from queue import Queue
 
 
 class RowBuffer:
@@ -7,7 +8,7 @@ class RowBuffer:
 
     A defaultdict mapping tables to a list of parsed rows
     """
-    collector = defaultdict(list)
+    collector = defaultdict(Queue)
     size = 0  # total number of rows being kept in collector
 
     def append(self, table, row):
@@ -18,10 +19,10 @@ class RowBuffer:
         :param row:
         :return:
         """
-        self.get_rows(table).append(row)
+        self.get_row_queue(table).put(row)
         self.inc_size()
 
-    def get_rows(self, table):
+    def get_row_queue(self, table):
         """
         Get list of rows corresponding to table
         :param table:
@@ -50,7 +51,7 @@ class RowBuffer:
         self.size = self.size + 1
 
     def reset(self):
-        self.collector = defaultdict(list)
+        self.collector = defaultdict(Queue)
         self.size = 0
 
 

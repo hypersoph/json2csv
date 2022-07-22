@@ -78,7 +78,7 @@ class Flatten:
                         # write all collected rows if total num rows exceeds specified size
                         if row_buffer.get_size() >= config.chunk_size:
                             for writer, table in zip(writers, row_buffer.get_tables()):
-                                writer.writerows(row_buffer.get_rows(table))
+                                writer.writerows(row_buffer.get_row_queue(table).queue)
 
                             row_buffer.reset()
                             files.flush()
@@ -93,7 +93,7 @@ class Flatten:
                 # write any remaining rows
                 if row_buffer.get_size() > 0:
                     for writer, table in zip(writers, row_buffer.get_tables()):
-                        writer.writerows(row_buffer.get_rows(table))
+                        writer.writerows(row_buffer.get_row_queue(table).queue)
 
                     row_buffer.reset()
 
