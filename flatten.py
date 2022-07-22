@@ -65,12 +65,12 @@ class Flatten:
                         for table in mappings:
                             # add identifiers to row
                             # append copies so that row doesn't get reset with mappings and id_dict dictionaries
-                            row = list(id_dict.values()) + list(mappings[table].maps[0].values())
+                            row = list(id_dict.values()) + list(mappings[table].values())
                             row_buffer.append(table, row)
 
                             # reset map
-                            for key in mappings[table].maps[0]:
-                                mappings[table].maps[0][key] = None
+                            for key in mappings[table]:
+                                mappings[table][key] = None
 
                         Flatten.count_rows = Flatten.count_rows + 1
                         pbar.update(1)
