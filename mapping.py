@@ -38,9 +38,9 @@ class Mapping:
                 pass
 
             # Add identifiers (e.g. factId and rollNumber) to each table
-            #for table in mappings:
-            #    for identifier in config.identifiers:
-            #        mappings[table][identifier] = None
+            for table in mappings:
+                for identifier in config.identifiers:
+                    mappings[table][identifier] = None
 
             # Second pass: add all column names to mappings with default values
             # This pass goes through the entire json file to collect all possible columns
