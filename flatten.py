@@ -181,7 +181,8 @@ def main(file, out, chunk_size):
     # note - The order of writers is the same as the order of top-level keys in mappings
     writers = [csv.DictWriter(files[table],
                               fieldnames=list(mappings[table].keys()),
-                              extrasaction='ignore')
+                              extrasaction='ignore',
+                              quoting=csv.QUOTE_NONNUMERIC)
                for table in mappings]
 
     start = time.time()  # track overall run time of flattening algorithm
