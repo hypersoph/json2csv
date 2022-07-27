@@ -49,7 +49,7 @@ class Mapping:
                 for (base_prefix, prefix, event, value) in tqdm(parse(f, multiple_values=True), desc="Creating mappings"):
                     if event == "string" or event == "number":
                         # find table that matches the prefix and add value if value is an external node
-                        if base_prefix not in config.identifiers:
+                        if base_prefix in select_tables and base_prefix not in config.identifiers:
                             mappings[base_prefix][prefix] = None
                     elif prefix == '' and event == 'end_map' and value is None:
                         Mapping.total_count_json = Mapping.total_count_json + 1
