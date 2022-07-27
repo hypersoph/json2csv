@@ -57,7 +57,7 @@ class RowBuffer:
 
 class FileHandler:
     """
-    Helps with file operations on many files at once
+    Represents a dict of all CSV files with methods to open and close all
     """
 
     def __init__(self):
