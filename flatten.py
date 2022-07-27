@@ -1,5 +1,6 @@
 import os
 import csv
+from pathlib import Path
 
 import time
 from cmd import Cmd
@@ -106,31 +107,33 @@ class Flatten:
 
 
 @click.command()
-@click.option('--file', '-f', help='Input JSON file', required=True, type=click.Path(exists=True))
+@click.option('--filepath', '-f', help='Input JSON file', required=True, type=click.Path(exists=True))
 @click.option('--out', '-o', help='Output directory', required=True, type=click.Path(file_okay=False))
 @click.option('--chunk-size', '-cs', type=int, default=500,
               help='# rows to keep in memory before writing for each file')
-def main(file, out, chunk_size):
+def main(filepath, out, chunk_size):
     """Program that flattens JSON file and converts to CSV"""
 
     # user input validation
-    if not file.endswith(".json"):
+    if not filepath.endswith(".json"):
         raise click.exceptions.BadOptionUsage('--file', "Input file extension is not .json")
+
+    filename = Path(filepath).stem
 
     # create output directory
     if not os.path.exists(out):
         os.mkdir(out)
 
-    config = Config(file, out, chunk_size)
+    config = Config(filepath, out, chunk_size)
 
     cli = Cmd()
 
     print("Running flatten.py")
-    print(f"Input file: {file}")
+    print(f"Input file: {filepath}")
     print(f"Output path: {out}")  # note to self: fix this to show full filesystem path
 
     print(f"\nTop-level keys:\n=================")
-    top_keys = get_top_keys(file)
+    top_keys = get_top_keys(filepath)
     cli.columnize(top_keys, displaywidth=80)
 
     input_valid = 0
@@ -174,7 +177,7 @@ def main(file, out, chunk_size):
     # open all CSV files, creates them if they don't exist
     out_files = FileHandler()
     for key in mappings.keys():
-        out_files.open(key, file=os.path.join(out, f'{key}.csv'), mode='w', encoding='utf-8', newline='')
+        out_files.open(key, file=os.path.join(out, f'{filename}_{key}.csv'), mode='w', encoding='utf-8', newline='')
 
     # create array of csv.DictWriter objects to prepare for writing rows
     files = out_files.files
