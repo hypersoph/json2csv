@@ -22,7 +22,7 @@ class Mapping:
         """
         mappings = {}
 
-        with open(config.json_file, "rb") as f:
+        with open(config.json_file, "r") as f:
             # First pass: add all top-level keys using first json in file
             try:
                 for (_, prefix, event, value) in parse(f, multiple_values=True):
