@@ -34,8 +34,8 @@ class Flatten:
             id_dict[identifier] = None
 
         with open(config.json_file, "r", newline='') as jsonfile:
-            for writer, table in zip(writers, mappings):
-                writer.writerow(list(mappings[table].keys()))
+            for writer in writers:
+                writer.writeheader()
 
             try:
                 pbar = tqdm(total=Mapping.total_count_json, desc='Flattening JSON')
@@ -67,8 +67,8 @@ class Flatten:
                             for id_key in id_dict:
                                 mappings[table][id_key] = id_dict[id_key]
 
-                            # append copy so that row doesn't get reset with mappings
-                            row = list(mappings[table].maps[0].values())
+                            row = mappings[table].maps[
+                                0].copy()  # append copy so that row doesn't get reset with mappings
                             row_buffer.append(table, row)
 
                             # reset map
@@ -108,7 +108,7 @@ class Flatten:
 @click.command()
 @click.option('--file', '-f', help='Input JSON file', required=True, type=click.Path(exists=True))
 @click.option('--out', '-o', help='Output directory', required=True, type=click.Path(file_okay=False))
-@click.option('--chunk-size', '-cs', type=int, default=50000,
+@click.option('--chunk-size', '-cs', type=int, default=500,
               help='# rows to keep in memory before writing for each file')
 def main(file, out, chunk_size):
     """Program that flattens JSON file and converts to CSV"""
@@ -179,7 +179,10 @@ def main(file, out, chunk_size):
     # create array of csv.DictWriter objects to prepare for writing rows
     files = out_files.files
     # note - The order of writers is the same as the order of top-level keys in mappings
-    writers = [csv.writer(files[table]) for table in mappings]
+    writers = [csv.DictWriter(files[table],
+                              fieldnames=list(mappings[table].keys()),
+                              extrasaction='ignore')
+               for table in mappings]
 
     start = time.time()  # track overall run time of flattening algorithm
     Flatten.json_flat(mappings, writers, out_files, tables, config)
