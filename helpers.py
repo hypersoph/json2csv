@@ -1,4 +1,5 @@
 from collections import defaultdict
+from blist import blist
 
 
 class RowBuffer:
@@ -7,7 +8,7 @@ class RowBuffer:
 
     A defaultdict mapping tables to a list of parsed rows
     """
-    collector = defaultdict(list)
+    collector = defaultdict(blist)
     size = 0  # total number of rows being kept in collector
 
     def append(self, table, row):
@@ -50,7 +51,7 @@ class RowBuffer:
         self.size = self.size + 1
 
     def reset(self):
-        self.collector = defaultdict(list)
+        self.collector = defaultdict(blist)
         self.size = 0
 
 

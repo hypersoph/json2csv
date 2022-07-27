@@ -39,9 +39,9 @@ class Mapping:
                 pass
 
             # Add identifiers (e.g. factId and rollNumber) to each table
-            #for table in mappings:
-            #    for identifier in config.identifiers:
-            #        mappings[table][identifier] = None
+            for table in mappings:
+                for identifier in config.identifiers:
+                    mappings[table][identifier] = None
 
             # Second pass: add all column names to mappings with default values
             # This pass goes through the entire json file to collect all possible columns
@@ -60,6 +60,6 @@ class Mapping:
         # for each table create ChainMap
         # The ChainMap makes it easy to restore default values to None after every json line
         for table in mappings:
-            mappings[table] = ChainMap(mappings[table].copy(), mappings[table])
+            mappings[table] = ChainMap({}, mappings[table])
 
         return mappings

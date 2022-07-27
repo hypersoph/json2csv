@@ -35,7 +35,7 @@ class Flatten:
 
         with open(config.json_file, "rb") as jsonfile:
             for writer, table in zip(writers, mappings):
-                writer.writerow(list(id_dict.keys()) + list(mappings[table].keys()))
+                writer.writerow(list(mappings[table].keys()))
 
             try:
                 pbar = tqdm(total=Mapping.total_count_json, desc='Flattening JSON')
@@ -65,12 +65,11 @@ class Flatten:
                         for table in mappings:
                             # add identifiers to row
                             # append copies so that row doesn't get reset with mappings and id_dict dictionaries
-                            row = list(id_dict.values()) + list(mappings[table].maps[0].values())
+                            row = blist(id_dict.values()) + blist(mappings[table].maps[0].values())
                             row_buffer.append(table, row)
 
                             # reset map
-                            for key in mappings[table].maps[0]:
-                                mappings[table].maps[0][key] = None
+                            mappings[table].maps[0].clear()
 
                         Flatten.count_rows = Flatten.count_rows + 1
                         pbar.update(1)
