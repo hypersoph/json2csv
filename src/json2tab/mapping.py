@@ -46,12 +46,14 @@ class Mapping:
             # Second pass: add all column names to mappings with default values
             # This pass goes through the entire json file to collect all possible columns
             try:
-                for (base_prefix, prefix, event, value) in tqdm(parse(f, multiple_values=True), desc="Creating mappings"):
+                progress = tqdm(desc="Creating mappings", unit=" lines")
+                for (base_prefix, prefix, event, value) in parse(f, multiple_values=True):
                     if event == "string" or event == "number":
                         # find table that matches the prefix and add value if value is an external node
                         if base_prefix in select_tables and base_prefix not in config.identifiers:
                             mappings[base_prefix][prefix] = None
                     elif prefix == '' and event == 'end_map' and value is None:
+                        progress.update(1)
                         Mapping.total_count_json = Mapping.total_count_json + 1
             except IncompleteJSONError as e:
                 click.echo(f"ijson.IncompleteJSONError {e}", err=True)
