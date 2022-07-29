@@ -118,8 +118,6 @@ def main(filepath, out, chunk_size):
     if not filepath.endswith(".json"):
         raise click.exceptions.BadOptionUsage('--filepath', "Input file extension is not .json")
 
-    filename = Path(filepath).stem
-
     # create output directory
     if not os.path.exists(out):
         os.mkdir(out)
@@ -184,8 +182,10 @@ def main(filepath, out, chunk_size):
         tables.remove(t)
         mappings.pop(t)
     click.echo()
+
     # open all CSV files, creates them if they don't exist
     out_files = FileHandler()
+    filename = Path(filepath).stem
     for key in mappings.keys():
         out_files.open(key, file=os.path.join(out, f'{filename}_{key}.csv'), mode='w', encoding='utf-8', newline='')
 
