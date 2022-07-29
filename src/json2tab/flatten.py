@@ -40,7 +40,7 @@ class Flatten:
                 writer.writeheader()
 
             try:
-                pbar = tqdm(total=Mapping.total_count_json, desc='Flattening JSON')
+                pbar = tqdm(total=Mapping.total_count_json, desc='Flattening JSON', unit=" lines")
                 parser = parse(jsonfile, multiple_values=True)
                 for (base_prefix, prefix, event, value) in parser:
 
@@ -85,7 +85,6 @@ class Flatten:
                                 writer.writerows(row_buffer.get_rows(table))
 
                             row_buffer.reset()
-                            files.flush()
 
                         # reset variables
                         for id_key in id_dict:
@@ -110,14 +109,14 @@ class Flatten:
 @click.command()
 @click.option('--filepath', '-f', help='Input JSON file', required=True, type=click.Path(exists=True))
 @click.option('--out', '-o', help='Output directory', required=True, type=click.Path(file_okay=False))
-@click.option('--chunk-size', '-cs', type=int, default=500,
+@click.option('--chunk-size', '-cs', type=int, default=10000,
               help='# rows to keep in memory before writing for each file')
 def main(filepath, out, chunk_size):
     """Program that flattens JSON file and converts to CSV"""
 
     # user input validation
     if not filepath.endswith(".json"):
-        raise click.exceptions.BadOptionUsage('--file', "Input file extension is not .json")
+        raise click.exceptions.BadOptionUsage('--filepath', "Input file extension is not .json")
 
     filename = Path(filepath).stem
 
@@ -173,14 +172,13 @@ def main(filepath, out, chunk_size):
     click.clear()
 
     mappings = Mapping.create_mappings(tables, config)
-    click.echo(f"The total number of json lines is: {Mapping.total_count_json}")
 
     # remove empty tables from mappings and selected tables
     empty_tables = []
     for t in mappings:
         if len(mappings[t]) == len(config.identifiers):
             empty_tables.append(t)
-    click.echo(f"\nNote: No output file will be created for the following keys because they have no values:")
+    click.echo(f"\nNote: No output file will be created for the following keys because they have no values:\n")
     for t in empty_tables:
         click.echo(f"\t{t}")
         tables.remove(t)
