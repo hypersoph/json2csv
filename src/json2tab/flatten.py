@@ -114,57 +114,73 @@ class Flatten:
 @click.option('--identifier', '-id',
               help=
               """
-              Top-level key to add as identifier to every output file. 
-              You can add this flag multiple times eg. -id factId -id rollNumber
+              Top-level key to add as identifier col to every output file. 
+              You can add this flag multiple times eg. -id factId -id otherId
               """,
               default=(), multiple=True)
-def main(filepath, out, chunk_size, identifier):
+@click.option('--table', '-t',
+              help=
+              """
+              Top-level key whose json values are to be converted to tabular format. 
+              You can add this flag multiple times eg. -t topkey1 -t topkey2
+              """,
+              multiple=True)
+def main(filepath, out, chunk_size, identifier, table):
     """Program that flattens JSON file and converts to CSV"""
 
-    ## user input validation ##
+    def validate_inputs():
+        # Specified file has extension .json
+        if not filepath.endswith(".json"):
+            raise click.exceptions.BadOptionUsage(option_name='--filepath',
+                                                  message=f"Invalid value for '--filepath' / '-f': Input file {filepath} is not .json")
 
-    # Specified file has extension .json
-    if not filepath.endswith(".json"):
-        raise click.exceptions.BadOptionUsage(option_name='--filepath', message=f"Invalid value for '--filepath' / '-f': Input file {filepath} is not .json")
+        t_keys = get_top_keys(filepath)
 
-    top_keys = get_top_keys(filepath)
+        # check identifiers are top level keys
+        if identifier:
+            if not (set(identifier).issubset(set(t_keys))):
+                raise click.exceptions.BadOptionUsage(option_name='--identifier',
+                                                      message=f"Invalid value for '--identifier' / '-id': At least one of {identifier} is not a top-level key")
 
-    # check identifiers are top level keys
-    if identifier:
-        if not (set(identifier).issubset(set(top_keys))):
-            raise click.exceptions.BadOptionUsage(option_name='--identifier', message=f"Invalid value for '--identifier' / '-id': At least one of {identifier} is not a top-level key")
+        # create output directory
+        if not os.path.exists(out):
+            try:
+                os.mkdir(out)
+            except FileNotFoundError:
+                raise click.exceptions.BadOptionUsage(option_name='--out',
+                                                      message=f"Invalid value for '--out / -o': Path '{out}' cannot be created")
+        if table:
+            if not (set(table).issubset(set(t_keys))):
+                raise click.exceptions.BadOptionUsage(option_name='--table',
+                                                      message=f"Invalid value for '--table' / '-t': At least one of {table} is not a top-level key")
 
-    # create output directory
-    if not os.path.exists(out):
-        try:
-            os.mkdir(out)
-        except FileNotFoundError:
-            raise click.exceptions.BadOptionUsage(option_name='--out', message=f"Invalid value for '--out / -o': Path '{out}' cannot be created")
+    validate_inputs()
+
+    click.echo("Starting program")
 
     config = Config(filepath, out, chunk_size)
-
     cli = Cmd()
-
-    print("Running flatten.py")
-    print(f"Input file: {filepath}")
-    print(f"Output path: {out}")  # note to self: fix this to show full filesystem path
+    click.echo(f"Input file: {filepath}")
+    click.echo(f"Output path: {out}")  # note to self: fix this to show full filesystem path
 
     print(f"\nTop-level keys:\n=================")
+    top_keys = get_top_keys(filepath)
     cli.columnize(top_keys, displaywidth=80)
 
-    input_valid = 0
-    tables = ''
-    while input_valid == 0:
-        tables = click.prompt(
-            f'\nEnter desired keys from the preceding list, separated by spaces (leave empty for all):\n',
-            default='', show_default=False)
+    if not table:
+        input_valid = 0
+        while input_valid == 0:
+            table = click.prompt(
+                f'\nEnter desired keys from the preceding list, separated by spaces (leave empty for all):\n',
+                default='', show_default=False)
 
-        tables = tables.split(" ") if tables else top_keys
-        # input valid if every table in tables is in top_keys
-        if set(tables).issubset(set(top_keys)):
-            input_valid = 1
-        else:
-            click.echo(f"Error: {tables} is not in {top_keys}", err=True)
+            table = table.split(" ") if table else top_keys
+            # input valid if every table in tables is in top_keys
+            if set(table).issubset(set(top_keys)):
+                input_valid = 1
+            else:
+                click.echo(f"Error: {table} is not in {top_keys}", err=True)
+    tables = table
 
     input_valid = 0
     if not identifier:
