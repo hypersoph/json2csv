@@ -111,16 +111,35 @@ class Flatten:
 @click.option('--out', '-o', help='Output directory', required=True, type=click.Path(file_okay=False))
 @click.option('--chunk-size', '-cs', type=int, default=10000,
               help='# rows to keep in memory before writing for each file')
-def main(filepath, out, chunk_size):
+@click.option('--identifier', '-id',
+              help=
+              """
+              Top-level key to add as identifier to every output file. 
+              You can add this flag multiple times eg. -id factId -id rollNumber
+              """,
+              default=(), multiple=True)
+def main(filepath, out, chunk_size, identifier):
     """Program that flattens JSON file and converts to CSV"""
 
-    # user input validation
+    ## user input validation ##
+
+    # Specified file has extension .json
     if not filepath.endswith(".json"):
-        raise click.exceptions.BadOptionUsage('--filepath', "Input file extension is not .json")
+        raise click.exceptions.BadOptionUsage(option_name='--filepath', message=f"Invalid value for '--filepath' / '-f': Input file {filepath} is not .json")
+
+    top_keys = get_top_keys(filepath)
+
+    # check identifiers are top level keys
+    if identifier:
+        if not (set(identifier).issubset(set(top_keys))):
+            raise click.exceptions.BadOptionUsage(option_name='--identifier', message=f"Invalid value for '--identifier' / '-id': At least one of {identifier} is not a top-level key")
 
     # create output directory
     if not os.path.exists(out):
-        os.mkdir(out)
+        try:
+            os.mkdir(out)
+        except FileNotFoundError:
+            raise click.exceptions.BadOptionUsage(option_name='--out', message=f"Invalid value for '--out / -o': Path '{out}' cannot be created")
 
     config = Config(filepath, out, chunk_size)
 
@@ -131,7 +150,6 @@ def main(filepath, out, chunk_size):
     print(f"Output path: {out}")  # note to self: fix this to show full filesystem path
 
     print(f"\nTop-level keys:\n=================")
-    top_keys = get_top_keys(filepath)
     cli.columnize(top_keys, displaywidth=80)
 
     input_valid = 0
