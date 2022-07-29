@@ -169,19 +169,20 @@ def main(filepath, out, chunk_size, identifier):
     input_valid = 0
     if not identifier:
         while input_valid == 0:
-            identifiers = click.prompt(f'Specify identifier keys separated by spaces (leave empty for defaults):',
-                                       default=config.identifiers)  # add error if keys not in tables
-            identifiers = identifiers.split(" ")
+            identifier = click.prompt(f'Specify identifier keys separated by spaces (leave empty for none):',
+                                       default='')  # add error if keys not in tables
+            if not identifier:
+                click.echo("No identifiers specified.")
+                break
 
-            if set(identifiers).issubset(set(top_keys)):
+            identifier = identifier.split(" ")
+
+            if set(identifier).issubset(set(top_keys)):
                 input_valid = 1
             else:
-                click.echo(f"Error: {identifiers} is not in {top_keys}", err=True)
+                click.echo(f"Error: {identifier} is not in {top_keys}", err=True)
 
-        config.identifiers = identifiers
-
-    else:
-        config.identifiers = identifier
+    config.identifiers = identifier
 
     # remove any identifiers from tables var
     for idt in config.identifiers:
