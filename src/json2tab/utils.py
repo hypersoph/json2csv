@@ -1,5 +1,5 @@
 import ijson
-from .helpers import Stack
+from json2tab.helpers import Stack
 
 
 def get_top_keys(json_file):

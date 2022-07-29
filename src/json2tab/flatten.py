@@ -4,10 +4,10 @@ from pathlib import Path
 import time
 from cmd import Cmd
 
-from .utils import parse, get_top_keys
-from .helpers import FileHandler, RowBuffer
-from .config import Config
-from .mapping import Mapping
+from json2tab.utils import parse, get_top_keys
+from json2tab.helpers import FileHandler, RowBuffer
+from json2tab.config import Config
+from json2tab.mapping import Mapping
 
 from tqdm import tqdm
 import ijson

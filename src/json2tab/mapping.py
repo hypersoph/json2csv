@@ -1,4 +1,4 @@
-from .utils import parse
+from json2tab.utils import parse
 from ijson import IncompleteJSONError
 import click
 
