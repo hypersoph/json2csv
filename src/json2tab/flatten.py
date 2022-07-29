@@ -106,6 +106,42 @@ class Flatten:
                 files.close()
 
 
+def prompt_tables(top_keys):
+    input_valid = 0
+    tables = ''
+    while input_valid == 0:
+        tables = click.prompt(
+            f'\nEnter desired keys from the preceding list, separated by spaces (leave empty for all):\n',
+            default='', show_default=False)
+
+        tables = tables.split(" ") if tables else top_keys
+        # input valid if every table in tables is in top_keys
+        if set(tables).issubset(set(top_keys)):
+            input_valid = 1
+        else:
+            click.echo(f"Error: {tables} is not in {top_keys}", err=True)
+    return tables
+
+
+def prompt_ids(top_keys):
+    input_valid = 0
+    identifiers = ''
+    while input_valid == 0:
+        identifiers = click.prompt(f'Specify identifier keys separated by spaces (leave empty for none):',
+                                   default='')  # add error if keys not in tables
+        if not identifiers:
+            click.echo("No identifiers specified.")
+            break
+
+        identifiers = identifiers.split(" ")
+
+        if set(identifiers).issubset(set(top_keys)):
+            input_valid = 1
+        else:
+            click.echo(f"Error: {identifiers} is not in {top_keys}", err=True)
+    return identifiers
+
+
 @click.command()
 @click.option('--filepath', '-f', help='Input JSON file', required=True, type=click.Path(exists=True))
 @click.option('--out', '-o', help='Output directory', required=True, type=click.Path(file_okay=False))
@@ -154,12 +190,25 @@ def main(filepath, out, chunk_size, identifier, table):
                 raise click.exceptions.BadOptionUsage(option_name='--table',
                                                       message=f"Invalid value for '--table' / '-t': At least one of {table} is not a top-level key")
 
+    def remove_empty_tables():
+        # remove empty tables from mappings and selected tables
+        empty_tables = []
+        for t in mappings:
+            if len(mappings[t]) == len(config.identifiers):
+                empty_tables.append(t)
+        click.echo(f"\nNote: No output file will be created for the following keys because they have no values:\n")
+        for t in empty_tables:
+            click.echo(f"\t{t}")
+            tables.remove(t)
+            mappings.pop(t)
+        click.echo()
+
     validate_inputs()
 
     click.echo("Starting program")
-
     config = Config(filepath, out, chunk_size)
     cli = Cmd()
+
     click.echo(f"Input file: {filepath}")
     click.echo(f"Output path: {out}")  # note to self: fix this to show full filesystem path
 
@@ -168,36 +217,11 @@ def main(filepath, out, chunk_size, identifier, table):
     cli.columnize(top_keys, displaywidth=80)
 
     if not table:
-        input_valid = 0
-        while input_valid == 0:
-            table = click.prompt(
-                f'\nEnter desired keys from the preceding list, separated by spaces (leave empty for all):\n',
-                default='', show_default=False)
-
-            table = table.split(" ") if table else top_keys
-            # input valid if every table in tables is in top_keys
-            if set(table).issubset(set(top_keys)):
-                input_valid = 1
-            else:
-                click.echo(f"Error: {table} is not in {top_keys}", err=True)
+        table = prompt_tables(top_keys)
     tables = table
 
-    input_valid = 0
     if not identifier:
-        while input_valid == 0:
-            identifier = click.prompt(f'Specify identifier keys separated by spaces (leave empty for none):',
-                                       default='')  # add error if keys not in tables
-            if not identifier:
-                click.echo("No identifiers specified.")
-                break
-
-            identifier = identifier.split(" ")
-
-            if set(identifier).issubset(set(top_keys)):
-                input_valid = 1
-            else:
-                click.echo(f"Error: {identifier} is not in {top_keys}", err=True)
-
+        identifier = prompt_ids(top_keys)
     config.identifiers = identifier
 
     # remove any identifiers from tables var
@@ -209,17 +233,7 @@ def main(filepath, out, chunk_size, identifier, table):
 
     mappings = Mapping.create_mappings(tables, config)
 
-    # remove empty tables from mappings and selected tables
-    empty_tables = []
-    for t in mappings:
-        if len(mappings[t]) == len(config.identifiers):
-            empty_tables.append(t)
-    click.echo(f"\nNote: No output file will be created for the following keys because they have no values:\n")
-    for t in empty_tables:
-        click.echo(f"\t{t}")
-        tables.remove(t)
-        mappings.pop(t)
-    click.echo()
+    remove_empty_tables()
 
     # open all CSV files, creates them if they don't exist
     out_files = FileHandler()
