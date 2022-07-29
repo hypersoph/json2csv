@@ -175,6 +175,17 @@ def main(filepath, out, chunk_size):
     mappings = Mapping.create_mappings(tables, config)
     click.echo(f"The total number of json lines is: {Mapping.total_count_json}")
 
+    # remove empty tables from mappings and selected tables
+    empty_tables = []
+    for t in mappings:
+        if len(mappings[t]) == len(config.identifiers):
+            empty_tables.append(t)
+    click.echo(f"\nNote: No output file will be created for the following keys because they have no values:")
+    for t in empty_tables:
+        click.echo(f"\t{t}")
+        tables.remove(t)
+        mappings.pop(t)
+    click.echo()
     # open all CSV files, creates them if they don't exist
     out_files = FileHandler()
     for key in mappings.keys():
