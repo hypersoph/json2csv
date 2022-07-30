@@ -165,6 +165,9 @@ def main(filepath, out, chunk_size, identifier, table):
     """Program that flattens JSON file and converts to CSV"""
 
     def validate_inputs():
+        """
+        Validate the program options specified
+        """
         # Specified file has extension .json
         if not filepath.endswith(".json"):
             raise click.exceptions.BadOptionUsage(option_name='--filepath',
@@ -191,7 +194,9 @@ def main(filepath, out, chunk_size, identifier, table):
                                                       message=f"Invalid value for '--table' / '-t': At least one of {table} is not a top-level key")
 
     def remove_empty_tables():
-        # remove empty tables from mappings and selected tables
+        """
+        remove empty tables from mappings and selected tables
+        """
         empty_tables = []
         for t in mappings:
             if len(mappings[t]) == len(config.identifiers):
