@@ -41,7 +41,7 @@ class Flatten:
 
             try:
                 pbar = tqdm(total=Mapping.total_count_json, desc='Flattening JSON', unit=" lines")
-                parser = parse(jsonfile, multiple_values=True)
+                parser = parse(jsonfile, multiple_values=True, use_float=True)
                 for (base_prefix, prefix, event, value) in parser:
 
                     if event == "string" or event == "number":
@@ -82,6 +82,7 @@ class Flatten:
 
                         # write all collected rows if total num rows exceeds specified size
                         if row_buffer.get_size() >= config.chunk_size:
+                            #click.echo(f"writing {row_buffer.get_size()} rows...")
                             for writer, table in zip(writers, row_buffer.get_tables()):
                                 writer.writerows(row_buffer.get_rows(table))
 
@@ -99,8 +100,10 @@ class Flatten:
 
                 # write any remaining rows
                 if row_buffer.get_size() > 0:
+                    #click.echo(f"writing {row_buffer.get_size()} rows...")
                     for writer, table in zip(writers, row_buffer.get_tables()):
                         writer.writerows(row_buffer.get_rows(table))
+                        click.echo(f"Successfully wrote table {table} with {len(mappings[table])} fields")
 
                     row_buffer.reset()
 
@@ -146,7 +149,7 @@ def prompt_ids(top_keys):
 @click.command()
 @click.option('--filepath', '-f', help='Input JSON file', required=True, type=click.Path(exists=True))
 @click.option('--out', '-o', help='Output directory', required=True, type=click.Path(file_okay=False))
-@click.option('--chunk-size', '-cs', type=int, default=10000,
+@click.option('--chunk-size', '-cs', type=int, default=100000,
               help='# rows to keep in memory before writing for each file')
 @click.option('--identifier', '-id',
               help=

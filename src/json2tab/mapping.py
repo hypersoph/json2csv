@@ -47,7 +47,7 @@ class Mapping:
             # This pass goes through the entire json file to collect all possible columns
             try:
                 progress = tqdm(desc="Creating mappings", unit=" lines")
-                for (base_prefix, prefix, event, value) in parse(f, multiple_values=True):
+                for (base_prefix, prefix, event, value) in parse(f, multiple_values=True, use_float=True):
                     if event == "string" or event == "number":
                         # find table that matches the prefix and add value if value is an external node
                         if base_prefix in select_tables and base_prefix not in config.identifiers:
