@@ -59,6 +59,7 @@ class Flatten:
                                 mappings[base_prefix][prefix] = [*mappings[base_prefix][prefix],
                                                                  value]  # unpack existing array into new one
                             else:
+                                #click.echo(f"{base_prefix} {prefix}, {value}", err=True)
                                 mappings[base_prefix][prefix] = [mappings[base_prefix][prefix], value]
 
                     # if reached end of a top-level json (i.e. finished one property)

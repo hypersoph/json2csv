@@ -122,8 +122,8 @@ class Stack:
             return None
 
     def peek(self):
-        """Return the final value from the Stack
-        if there is a final value
+        """Return the last value from the Stack
+        if there is one
         Runs in constant time O(1) as only finding the
         end of the list using the index
         """

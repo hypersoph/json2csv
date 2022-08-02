@@ -51,45 +51,78 @@ def parse(file, **kwargs):
     path = []
 
     # variables to compute prefix for arrays in json
-    arr_indices = Stack()  # tracking indices of array elements in json
-    current_i = None  # index of current json array element index in the path
-    # purpose of current_i is mainly to differentiate between regular arrays [1,2,3] and arrays with json nested in them
+    arr_indices = Stack()  # tracking indices of array elements in json, to be added to prefixes
+    openings = Stack()
+    current_pos = Stack()  # location of associated array index in the `path`
 
     for event, value in basic_events:
         if event == 'map_key':
-            prefix = '_'.join(path[:-1])
+            prefix = '.'.join(path[:-1])
             path[-1] = value
         elif event == 'start_map':
-            prefix = '_'.join(path)
+            prefix = '.'.join(path)
             path.append(None)
+
+            if openings.peek() == "start_array":
+                openings.push(event)
+            elif openings.peek() == "map_parsed":
+                if not arr_indices.is_empty():
+                    arr_indices.setLast(arr_indices.peek() + 1)
+                    path[current_pos.peek()] = str(arr_indices.peek())  # update the path
+                openings.pop()
 
         elif event == 'end_map':
             path.pop()
 
-            if not arr_indices.is_empty():
-                arr_indices.setLast(arr_indices.peek() + 1)
-                path[-1] = str(arr_indices.peek())
+            if openings.peek() == "start_map":
+                openings.pop()
+                openings.push("map_parsed")
+            elif openings.peek() == "arr_parsed":
+                openings.pop()
+                openings.push("map_parsed")
 
-            prefix = '_'.join(path)
+            prefix = '.'.join(path)
         elif event == 'start_array':
-            prefix = '_'.join(path)
+            prefix = '.'.join(path)
+
+            if openings.peek() == "arr_parsed":
+                if not arr_indices.is_empty():
+                    arr_indices.setLast(arr_indices.peek() + 1)
+                    path[current_pos.peek()] = str(arr_indices.peek())  # update the path
+                openings.pop()
+
             arr_indices.push(0)
             path.append(str(arr_indices.peek()))
             current_i = len(path) - 1
+            current_pos.push(current_i)
+            openings.push(event)
 
         elif event == 'end_array':
             path.pop()
             arr_indices.pop()
-            current_i = None
-            prefix = '_'.join(path)
+            current_pos.pop()
+            if openings.peek() == 'start_array':
+                openings.pop()
+                if openings.peek() == 'start_array':
+                    openings.push("arr_parsed")
+            elif openings.peek() == 'arr_parsed':
+                openings.pop()
+                openings.pop()
+                openings.push("arr_parsed")
+            elif openings.peek() == 'map_parsed':
+                openings.pop()
+                openings.pop()
+
+            prefix = '.'.join(path)
 
         else:  # any scalar value
-            prefix = '_'.join(path)
-            if not arr_indices.is_empty() and current_i == len(
-                    path) - 1:  # if array is of type [value1, value2, value3]
+            prefix = '.'.join(path)
+            if openings.peek() == 'start_array':  # if array is of type [value1, value2, value3]
                 arr_indices.setLast(arr_indices.peek() + 1)
+                current_i = current_pos.peek()
                 path[current_i] = str(arr_indices.peek())  # update the path
 
         base_prefix = path[0] if prefix else ""
 
         yield base_prefix, prefix, event, value
+
