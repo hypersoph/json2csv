@@ -1,5 +1,16 @@
 import ijson
 from json2tab.helpers import Stack
+import gzip
+
+
+def open_file(filename, **kwargs):
+    """
+    Open .json or .json.gz file depending on given filename extension
+    """
+    if filename.endswith(".json"):
+        return open(filename, **kwargs)
+    elif filename.endswith(".json.gz"):
+        return gzip.open(filename, **kwargs)
 
 
 def get_top_keys(json_file):
@@ -10,7 +21,7 @@ def get_top_keys(json_file):
     :return: list of top-level keys from first json line
     """
     result = []
-    with open(json_file, "r") as f:
+    with open_file(json_file, mode="rb") as f:
         for (_, prefix, event, value) in parse(f, multiple_values=True):
             if prefix == '' and event == 'map_key' and value:
                 result.append(value)
@@ -46,10 +57,10 @@ def parse(file, **kwargs):
 
     for event, value in basic_events:
         if event == 'map_key':
-            prefix = '.'.join(path[:-1])
+            prefix = '_'.join(path[:-1])
             path[-1] = value
         elif event == 'start_map':
-            prefix = '.'.join(path)
+            prefix = '_'.join(path)
             path.append(None)
 
         elif event == 'end_map':
@@ -59,9 +70,9 @@ def parse(file, **kwargs):
                 arr_indices.setLast(arr_indices.peek() + 1)
                 path[-1] = str(arr_indices.peek())
 
-            prefix = '.'.join(path)
+            prefix = '_'.join(path)
         elif event == 'start_array':
-            prefix = '.'.join(path)
+            prefix = '_'.join(path)
             arr_indices.push(0)
             path.append(str(arr_indices.peek()))
             current_i = len(path) - 1
@@ -70,10 +81,10 @@ def parse(file, **kwargs):
             path.pop()
             arr_indices.pop()
             current_i = None
-            prefix = '.'.join(path)
+            prefix = '_'.join(path)
 
         else:  # any scalar value
-            prefix = '.'.join(path)
+            prefix = '_'.join(path)
             if not arr_indices.is_empty() and current_i == len(
                     path) - 1:  # if array is of type [value1, value2, value3]
                 arr_indices.setLast(arr_indices.peek() + 1)

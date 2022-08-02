@@ -24,7 +24,7 @@ dependencies = [
 ]
 
 [project.scripts]
-json2tab='json2tab.flatten:main'
+json2tab='json2tab.__main__'
 
 [project.urls]
 "Homepage" = "https://github.com/mpac-nguyenso/json-parsing"

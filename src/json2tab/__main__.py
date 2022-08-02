@@ -4,7 +4,7 @@ from pathlib import Path
 import time
 from cmd import Cmd
 
-from json2tab.utils import parse, get_top_keys
+from json2tab.utils import parse, get_top_keys, open_file
 from json2tab.helpers import FileHandler, RowBuffer
 from json2tab.config import Config
 from json2tab.mapping import Mapping
@@ -35,7 +35,7 @@ class Flatten:
         for identifier in config.identifiers:
             id_dict[identifier] = None
 
-        with open(config.json_file, "r", newline='') as jsonfile:
+        with open_file(config.json_file, mode="rb") as jsonfile:
             for writer in writers:
                 writer.writeheader()
 
@@ -169,9 +169,9 @@ def main(filepath, out, chunk_size, identifier, table):
         Validate the program options specified
         """
         # Specified file has extension .json
-        if not filepath.endswith(".json"):
+        if not filepath.endswith(".json") and not filepath.endswith(".json.gz"):
             raise click.exceptions.BadOptionUsage(option_name='--filepath',
-                                                  message=f"Invalid value for '--filepath' / '-f': Input file {filepath} is not .json")
+                                                  message=f"Invalid value for '--filepath' / '-f': Input file {filepath} extension is not .json or .json.gz")
 
         t_keys = get_top_keys(filepath)
 

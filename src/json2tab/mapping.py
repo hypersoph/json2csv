@@ -1,4 +1,4 @@
-from json2tab.utils import parse
+from json2tab.utils import parse, open_file
 from ijson import IncompleteJSONError
 import click
 
@@ -22,7 +22,7 @@ class Mapping:
         """
         mappings = {}
 
-        with open(config.json_file, "r") as f:
+        with open_file(config.json_file, mode="r") as f:
             # First pass: add all top-level keys using first json in file
             try:
                 for (_, prefix, event, value) in parse(f, multiple_values=True):
