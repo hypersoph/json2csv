@@ -97,13 +97,14 @@ class Flatten:
                 pass
             finally:
                 pbar.close()
-
+                click.echo()
                 # write any remaining rows
                 if row_buffer.get_size() > 0:
                     #click.echo(f"writing {row_buffer.get_size()} rows...")
                     for writer, table in zip(writers, row_buffer.get_tables()):
                         writer.writerows(row_buffer.get_rows(table))
-                        click.echo(f"Successfully wrote table {table} with {len(mappings[table])} fields")
+                        file = files.files[table]
+                        click.echo(f"Successfully wrote {file['name']} with {len(mappings[table])} fields")
 
                     row_buffer.reset()
 
@@ -259,20 +260,16 @@ def main(filepath, out, chunk_size, identifier, table, compress):
     # create array of csv.DictWriter objects to prepare for writing rows
     files = out_files.files
     # note - The order of writers is the same as the order of top-level keys in mappings
-    writers = [csv.DictWriter(files[table],
+    writers = [csv.DictWriter(files[table]['file'],
                               fieldnames=list(mappings[table].keys()),
                               extrasaction='ignore')
                for table in mappings]
 
-    start = time.time()  # track overall run time of flattening algorithm
     Flatten.json_flat(mappings, writers, out_files, tables, config)
-    end = time.time()
 
-    print(f"{out_files.size()} files written to {out}\n")
+    click.echo(f"\n{out_files.size()} files written to {out}\n")
 
-    total_time = (end - start)
-    print(f"Number of json lines written into each file is: {Flatten.count_rows}")
-    print(f"The average time per json line is: {total_time * 1000 / Flatten.count_rows:.4f} ms")
+    click.echo(f"Number of json lines written into each file is: {Flatten.count_rows}")
 
 
 if __name__ == "__main__":

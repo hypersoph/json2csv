@@ -70,23 +70,24 @@ class FileHandler:
     """
 
     def __init__(self):
-        self.files = {}
+        self.files = defaultdict(dict)
         self.__index = 0
 
     def open(self, file_key, filename, **kwargs):
         """open file and add to files dict"""
         f = open_file(filename, **kwargs)
-        self.files[file_key] = f
+        self.files[file_key]['file'] = f
+        self.files[file_key]['name'] = filename
         return f
 
     def close(self):
         """close all open files"""
         for file_key in self.files:
-            self.files[file_key].close()
+            self.files[file_key]['file'].close()
 
     def flush(self):
         for file_key in self.files:
-            self.files[file_key].flush()
+            self.files[file_key]['file'].flush()
 
     def size(self):
         return len(self.files)
