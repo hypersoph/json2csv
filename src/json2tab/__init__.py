@@ -69,12 +69,12 @@ class Flatten:
                             for id_key in id_dict:
                                 mappings[table][id_key] = id_dict[id_key]
 
-                            row = mappings[table].maps[
-                                0].copy()  # append copy so that row doesn't get reset with mappings
+                            row = mappings[table].copy()  # append copy so that row doesn't get reset with mappings
                             row_buffer.append(table, row)
 
                             # reset map
-                            mappings[table].maps[0].clear()
+                            for field in mappings[table]:
+                                mappings[table][field] = None
 
                         Flatten.count_rows = Flatten.count_rows + 1
                         pbar.update(1)
@@ -103,7 +103,7 @@ class Flatten:
                     for writer, table in zip(writers, row_buffer.get_tables()):
                         writer.writerows(row_buffer.get_rows(table))
                         file = files.files[table]
-                        click.echo(f"Successfully wrote {file['name']} with {len(mappings[table])} fields")
+                        click.echo(f"Wrote {file['name']} with {len(mappings[table])} fields")
 
                     row_buffer.reset()
 

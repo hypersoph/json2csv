@@ -2,7 +2,6 @@ from json2tab.utils import parse, open_file
 from ijson import IncompleteJSONError
 import click
 
-from collections import ChainMap
 from tqdm import tqdm
 
 
@@ -58,10 +57,5 @@ class Mapping:
             except IncompleteJSONError as e:
                 click.echo(f"ijson.IncompleteJSONError {e}", err=True)
                 pass
-
-        # for each table create ChainMap
-        # The ChainMap makes it easy to restore default values to None after every json line
-        for table in mappings:
-            mappings[table] = ChainMap({}, mappings[table])
 
         return mappings
