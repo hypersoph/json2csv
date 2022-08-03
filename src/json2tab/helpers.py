@@ -1,5 +1,6 @@
 from collections import defaultdict
 import gzip
+from queue import Queue
 from pathlib import Path
 
 
@@ -18,21 +19,19 @@ def open_file(filepath, **kwargs):
 class RowBuffer:
     """
     Helper class for accumulating rows from json flattening before writing to file
-
     A defaultdict mapping tables to a list of parsed rows
     """
-    collector = defaultdict(list)
+    collector = defaultdict(Queue)
     size = 0  # total number of rows being kept in collector
 
     def append(self, table, row):
         """
         Append a row to its corresponding table
-
         :param table:
         :param row:
         :return:
         """
-        self.get_rows(table).append(row)
+        self.collector[table].put_nowait(row)
         self.inc_size()
 
     def get_rows(self, table):
@@ -41,7 +40,7 @@ class RowBuffer:
         :param table:
         :return:
         """
-        return self.collector[table]
+        return self.collector[table].queue
 
     def get_tables(self):
         """
@@ -64,7 +63,7 @@ class RowBuffer:
         self.size = self.size + 1
 
     def reset(self):
-        self.collector = defaultdict(list)
+        self.collector = defaultdict(Queue)
         self.size = 0
 
 
