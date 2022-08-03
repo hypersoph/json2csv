@@ -255,7 +255,7 @@ def main(filepath, out, chunk_size, identifier, table, compress):
     out_files = FileHandler()
     filename = Path(filepath).stem.strip(".json")
     for key in mappings.keys():
-        out_files.open(key, os.path.join(out, f'{filename}_{key}{extension}'), mode='wt', encoding='utf-8', newline='')
+        out_files.open(key, Path(out)/f'{filename}_{key}{extension}', mode='wt', encoding='utf-8', newline='')
 
     # create array of csv.DictWriter objects to prepare for writing rows
     files = out_files.files

@@ -1,14 +1,18 @@
 from collections import defaultdict
 import gzip
+from pathlib import Path
 
-def open_file(filename, **kwargs):
+
+def open_file(filepath, **kwargs):
     """
     Open .json or .json.gz file depending on given filename extension
+
+    :param filename: str specifying file path
     """
-    if filename.endswith(".gz"):
-        return gzip.open(filename, **kwargs)
+    if filepath.endswith(".gz"):
+        return gzip.open(filepath, **kwargs)
     else:
-        return open(filename, **kwargs)
+        return open(filepath, **kwargs)
 
 
 class RowBuffer:
@@ -73,9 +77,15 @@ class FileHandler:
         self.files = defaultdict(dict)
         self.__index = 0
 
-    def open(self, file_key, filename, **kwargs):
-        """open file and add to files dict"""
-        f = open_file(filename, **kwargs)
+    def open(self, file_key, filepath, **kwargs):
+        """
+        open file and add to files dict
+
+        :param file_key: target key in files dict
+        :param filepath: Path object specifying the file path
+        """
+        filename = filepath.name
+        f = open_file(str(filepath), **kwargs)
         self.files[file_key]['file'] = f
         self.files[file_key]['name'] = filename
         return f
