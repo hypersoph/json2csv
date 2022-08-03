@@ -206,7 +206,8 @@ def main(filepath, out, chunk_size, identifier, table, compress):
         for t in mappings:
             if len(mappings[t]) == len(config.identifiers):
                 empty_tables.append(t)
-        click.echo(f"\nNote: No output file will be created for the following keys because they have no values:\n")
+        if empty_tables:
+            click.echo(f"\nNote: No output file will be created for the following keys because they have no values:\n")
         for t in empty_tables:
             click.echo(f"\t{t}")
             tables.remove(t)
@@ -256,7 +257,7 @@ def main(filepath, out, chunk_size, identifier, table, compress):
     for key in mappings.keys():
         out_files.open(key, Path(out)/f'{filename}_{key}{extension}', mode='wt', encoding='utf-8', newline='')
 
-    # create array of csv.DictWriter objects to prepare for writing rows
+    # Create list of writers
     files = out_files.files
     # note - The order of writers is the same as the order of top-level keys in mappings
     writers = [csv.DictWriter(files[table]['file'],
