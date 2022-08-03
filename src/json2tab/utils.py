@@ -1,16 +1,5 @@
 import ijson
-from json2tab.helpers import Stack
-import gzip
-
-
-def open_file(filename, **kwargs):
-    """
-    Open .json or .json.gz file depending on given filename extension
-    """
-    if filename.endswith(".json"):
-        return open(filename, **kwargs)
-    elif filename.endswith(".json.gz"):
-        return gzip.open(filename, **kwargs)
+from json2tab.helpers import Stack, open_file
 
 
 def get_top_keys(json_file):

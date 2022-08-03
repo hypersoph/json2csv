@@ -1,4 +1,14 @@
 from collections import defaultdict
+import gzip
+
+def open_file(filename, **kwargs):
+    """
+    Open .json or .json.gz file depending on given filename extension
+    """
+    if filename.endswith(".gz"):
+        return gzip.open(filename, **kwargs)
+    else:
+        return open(filename, **kwargs)
 
 
 class RowBuffer:
@@ -63,9 +73,9 @@ class FileHandler:
         self.files = {}
         self.__index = 0
 
-    def open(self, file_key, **kwargs):
+    def open(self, file_key, filename, **kwargs):
         """open file and add to files dict"""
-        f = open(**kwargs)
+        f = open_file(filename, **kwargs)
         self.files[file_key] = f
         return f
 

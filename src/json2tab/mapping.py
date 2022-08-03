@@ -48,7 +48,7 @@ class Mapping:
             try:
                 progress = tqdm(desc="Creating mappings", unit=" lines")
                 for (base_prefix, prefix, event, value) in parse(f, multiple_values=True, use_float=True):
-                    if event == "string" or event == "number":
+                    if event == "string" or event == "number" or event == "boolean":
                         # find table that matches the prefix and add value if value is an external node
                         if base_prefix in select_tables and base_prefix not in config.identifiers:
                             mappings[base_prefix][prefix] = None

@@ -4,8 +4,8 @@ from pathlib import Path
 import time
 from cmd import Cmd
 
-from json2tab.utils import parse, get_top_keys, open_file
-from json2tab.helpers import FileHandler, RowBuffer
+from json2tab.utils import parse, get_top_keys
+from json2tab.helpers import FileHandler, RowBuffer, open_file
 from json2tab.config import Config
 from json2tab.mapping import Mapping
 
@@ -44,7 +44,7 @@ class Flatten:
                 parser = parse(jsonfile, multiple_values=True, use_float=True)
                 for (base_prefix, prefix, event, value) in parser:
 
-                    if event == "string" or event == "number":
+                    if event == "string" or event == "number" or event == "boolean":
                         for id_key in id_dict:
                             if id_dict[id_key] is None and base_prefix == id_key:
                                 id_dict[id_key] = value
@@ -147,7 +147,7 @@ def prompt_ids(top_keys):
 
 
 @click.command()
-@click.option('--filepath', '-f', help='Input JSON file', required=True, type=click.Path(exists=True))
+@click.option('--filepath', '-f', help='Input JSON file path', required=True, type=click.Path(exists=True))
 @click.option('--out', '-o', help='Output directory', required=True, type=click.Path(file_okay=False))
 @click.option('--chunk-size', '-cs', type=int, default=100000,
               help='# rows to keep in memory before writing for each file')
@@ -165,7 +165,8 @@ def prompt_ids(top_keys):
               You can add this flag multiple times eg. -t topkey1 -t topkey2
               """,
               multiple=True)
-def main(filepath, out, chunk_size, identifier, table):
+@click.option('--compress', '-c', help="Output a compressed csv eg. output_file.csv.gz", is_flag=True)
+def main(filepath, out, chunk_size, identifier, table, compress):
     """Program that flattens JSON file and converts to CSV"""
 
     def validate_inputs():
@@ -244,11 +245,16 @@ def main(filepath, out, chunk_size, identifier, table):
 
     remove_empty_tables()
 
+    if compress:
+        extension = '.csv.gz'
+    else:
+        extension = '.csv'
+
     # open all CSV files, creates them if they don't exist
     out_files = FileHandler()
-    filename = Path(filepath).stem
+    filename = Path(filepath).stem.strip(".json")
     for key in mappings.keys():
-        out_files.open(key, file=os.path.join(out, f'{filename}_{key}.csv'), mode='w', encoding='utf-8', newline='')
+        out_files.open(key, os.path.join(out, f'{filename}_{key}{extension}'), mode='wt', encoding='utf-8', newline='')
 
     # create array of csv.DictWriter objects to prepare for writing rows
     files = out_files.files
