@@ -201,7 +201,8 @@ def prompt_ids(top_keys: Iterable) -> Iterable:
               help='Number of rows to keep in memory before writing for each file.')
 @click.option('--exclude', '-e', help="""
             Use all available top-level keys excluding those specified with this option. 
-            Mutually exclusive with \'--table\' / \'-t\'
+            Mutually exclusive with \'--table\' / \'-t\'.
+            Usage eg. -e topkey1 -e topkey2
             """,
               default=(), multiple=True)
 def main(filepath, out, identifier, table, compress, chunk_size, exclude):
@@ -269,11 +270,11 @@ def main(filepath, out, identifier, table, compress, chunk_size, exclude):
     click.echo(f"Input file: {filepath}")
     click.echo(f"Output path: {out}")  # note to self: fix this to show full filesystem path
 
-    print(f"\nTop-level keys:\n=================")
     top_keys = get_top_keys(filepath)
-    cli.columnize(top_keys, displaywidth=80)
 
     if not table and not exclude:
+        print(f"\nTop-level keys:\n=================")
+        cli.columnize(top_keys, displaywidth=80)
         table = prompt_tables(top_keys)
 
     if exclude:
