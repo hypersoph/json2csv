@@ -2,11 +2,11 @@ import ijson
 from json2tab.helpers import Stack, open_file
 
 
-def get_top_keys(json_file):
+def get_top_keys(json_file: str) -> list:
     """
     Get the top-level keys of the first json line in json_file
 
-    :param json_file:
+    :param json_file: json file path
     :return: list of top-level keys from first json line
     """
     result = []
@@ -19,6 +19,7 @@ def get_top_keys(json_file):
                 break
 
     return result
+
 
 @ijson.coroutine
 def parse_coro(target):
@@ -55,7 +56,7 @@ def parse_coro(target):
                 openings.push(event)
             elif openings.peek() == "map_parsed":
                 if not arr_indices.is_empty():
-                    arr_indices.setLast(arr_indices.peek() + 1)
+                    arr_indices.set_last(arr_indices.peek() + 1)
                     path[current_pos.peek()] = str(arr_indices.peek())  # update the path
                 openings.pop()
 
@@ -75,7 +76,7 @@ def parse_coro(target):
 
             if openings.peek() == "arr_parsed":
                 if not arr_indices.is_empty():
-                    arr_indices.setLast(arr_indices.peek() + 1)
+                    arr_indices.set_last(arr_indices.peek() + 1)
                     path[current_pos.peek()] = str(arr_indices.peek())  # update the path
                 openings.pop()
 
@@ -106,7 +107,7 @@ def parse_coro(target):
         else:  # any scalar value
             prefix = '.'.join(path)
             if openings.peek() == 'start_array':  # if array is of type [value1, value2, value3]
-                arr_indices.setLast(arr_indices.peek() + 1)
+                arr_indices.set_last(arr_indices.peek() + 1)
                 current_i = current_pos.peek()
                 path[current_i] = str(arr_indices.peek())  # update the path
 
@@ -150,7 +151,7 @@ def parse(file, **kwargs):
                 openings.push(event)
             elif openings.peek() == "map_parsed":
                 if not arr_indices.is_empty():
-                    arr_indices.setLast(arr_indices.peek() + 1)
+                    arr_indices.set_last(arr_indices.peek() + 1)
                     path[current_pos.peek()] = str(arr_indices.peek())  # update the path
                 openings.pop()
 
@@ -170,7 +171,7 @@ def parse(file, **kwargs):
 
             if openings.peek() == "arr_parsed":
                 if not arr_indices.is_empty():
-                    arr_indices.setLast(arr_indices.peek() + 1)
+                    arr_indices.set_last(arr_indices.peek() + 1)
                     path[current_pos.peek()] = str(arr_indices.peek())  # update the path
                 openings.pop()
 
@@ -201,7 +202,7 @@ def parse(file, **kwargs):
         else:  # any scalar value
             prefix = '.'.join(path)
             if openings.peek() == 'start_array':  # if array is of type [value1, value2, value3]
-                arr_indices.setLast(arr_indices.peek() + 1)
+                arr_indices.set_last(arr_indices.peek() + 1)
                 current_i = current_pos.peek()
                 path[current_i] = str(arr_indices.peek())  # update the path
 

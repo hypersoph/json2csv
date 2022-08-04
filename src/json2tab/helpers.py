@@ -1,14 +1,13 @@
 from collections import defaultdict
 import gzip
 from queue import Queue
-from pathlib import Path
 
 
-def open_file(filepath, **kwargs):
+def open_file(filepath: str, **kwargs):
     """
     Open .json or .json.gz file depending on given filename extension
 
-    :param filename: str specifying file path
+    :param filepath: str specifying file path
     """
     if filepath.endswith(".gz"):
         return gzip.open(filepath, **kwargs)
@@ -155,7 +154,7 @@ class Stack:
         else:
             return None
 
-    def setLast(self, item):
+    def set_last(self, item):
         """
         Modify the last item in the stack
         :param item: value to change last item of stack to
