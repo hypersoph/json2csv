@@ -2,7 +2,10 @@ import os
 import csv
 from pathlib import Path
 from cmd import Cmd
+import concurrent.futures
+from typing import Iterable, NoReturn
 
+import json2tab.utils as utils
 from json2tab.utils import parse, get_top_keys
 from json2tab.helpers import FileHandler, RowBuffer, open_file
 from json2tab.config import Config
@@ -13,106 +16,132 @@ import ijson
 import click
 
 
-class Flatten:
-    count_rows = 0  # track number of rows written
+def json_bytes_from_file(f):
+    """
+    Generator that yields bytes from a file-like object
 
-    @staticmethod
-    def json_flat(mappings, writers, files, select_tables, config):
-        """
-        Flatten json and output to csv
+    :param f: file-like object
+    """
+    while True:
+        chunk = f.read(65536)
+        if not chunk:
+            break
+        yield chunk
 
-        :param files:
-        :param config: User specified configuration
-        :param select_tables: selected tables to output
-        :param mappings: mapping dict specifying structure of output files
-        :param writers: list of output writers
-        """
 
-        row_buffer = RowBuffer()
+def flatten(files: FileHandler, select_tables: Iterable, mappings: dict, writers: list, conf: Config) -> NoReturn:
+    """
+    Flatten json and output to csv
 
-        id_dict = {}  # keep track of specified identifier values e.g. factId and rollNumber
-        for identifier in config.identifiers:
-            id_dict[identifier] = None
+    :param files: output files
+    :param select_tables: selected tables to output
+    :param mappings: mapping dict specifying structure of output files
+    :param writers: list of output writers
+     :param conf: User specified configuration
+    """
+    row_buffer = RowBuffer()
 
-        with open_file(config.json_file, mode="rb") as jsonfile:
-            for writer in writers:
-                writer.writeheader()
+    id_dict = {}  # keep track of specified identifier values e.g. factId and rollNumber
+    for identifier in conf.identifiers:
+        id_dict[identifier] = None
 
-            try:
-                pbar = tqdm(total=Mapping.total_count_json, desc='Flattening JSON', unit=" lines")
-                parser = parse(jsonfile, multiple_values=True, use_float=True)
-                for (base_prefix, prefix, event, value) in parser:
+    pbar = tqdm(total=Mapping.total_count_json, desc='Flattening JSON', unit=" lines")
 
-                    if event == "string" or event == "number" or event == "boolean":
-                        for id_key in id_dict:
-                            if id_dict[id_key] is None and base_prefix == id_key:
-                                id_dict[id_key] = value
+    @ijson.coroutine
+    def process(exe):
+        while True:
+            (base_prefix, prefix, event, value) = (yield)
 
-                        if base_prefix in select_tables and base_prefix not in config.identifiers:
-                            # if leaf reached and the field is not yet populated, set the value
-                            if mappings[base_prefix][prefix] is None:
-                                mappings[base_prefix][prefix] = value
+            if event == "string" or event == "number" or event == "boolean":
+                for id_key in id_dict:
+                    if id_dict[id_key] is None and base_prefix == id_key:
+                        id_dict[id_key] = value
 
-                            # else if leaf reached and field is already populated, create or append to array
-                            elif type(mappings[base_prefix][prefix]) == list:
-                                mappings[base_prefix][prefix] = [*mappings[base_prefix][prefix],
-                                                                 value]  # unpack existing array into new one
-                            else:
-                                #click.echo(f"{base_prefix} {prefix}, {value}", err=True)
-                                mappings[base_prefix][prefix] = [mappings[base_prefix][prefix], value]
+                if base_prefix in select_tables and base_prefix not in conf.identifiers:
+                    # if leaf reached and the field is not yet populated, set the value
+                    if mappings[base_prefix][prefix] is None:
+                        mappings[base_prefix][prefix] = value
 
-                    # if reached end of a top-level json (i.e. finished one property)
-                    elif prefix == '' and event == 'end_map' and value is None:
+                    else:
+                        raise Exception(f"Multiple values with same prefix: {prefix}, value: {value}")
 
-                        for table in mappings:
-                            # add identifiers to row
-                            for id_key in id_dict:
-                                mappings[table][id_key] = id_dict[id_key]
+            # if reached end of a top-level json (i.e. finished one property)
+            elif prefix == '' and event == 'end_map' and value is None:
+                futures = []
+                for table in mappings:
+                    # add identifiers to row
+                    for id_key in id_dict:
+                        mappings[table][id_key] = id_dict[id_key]
 
-                            row = mappings[table].copy()  # append copy so that row doesn't get reset with mappings
-                            row_buffer.append(table, row)
+                    futures.append(exe.submit(list, mappings[table].values()))
 
-                            # reset map
-                            for field in mappings[table]:
-                                mappings[table][field] = None
+                concurrent.futures.wait(futures)
 
-                        Flatten.count_rows = Flatten.count_rows + 1
-                        pbar.update(1)
+                for future, table in zip(futures, mappings):
+                    row = future.result()
+                    row_buffer.append(table, row)
 
-                        # write all collected rows if total num rows exceeds specified size
-                        if row_buffer.get_size() >= config.chunk_size:
-                            #click.echo(f"writing {row_buffer.get_size()} rows...")
-                            for writer, table in zip(writers, row_buffer.get_tables()):
-                                writer.writerows(row_buffer.get_rows(table))
+                    # reset map
+                    for field in mappings[table]:
+                        mappings[table][field] = None
 
-                            row_buffer.reset()
+                pbar.update(1)
 
-                        # reset variables
-                        for id_key in id_dict:
-                            id_dict[id_key] = None
-
-            except ijson.IncompleteJSONError as e:
-                click.echo(f"ijson.IncompleteJSONError {e}", err=True)
-                pass
-            finally:
-                pbar.close()
-                click.echo()
-                # write any remaining rows
-                if row_buffer.get_size() > 0:
-                    #click.echo(f"writing {row_buffer.get_size()} rows...")
-                    for writer, table in zip(writers, row_buffer.get_tables()):
-                        writer.writerows(row_buffer.get_rows(table))
-                        file = files.files[table]
-                        click.echo(f"Wrote {file['name']} with {len(mappings[table])} fields")
+                # write all collected rows if total num rows exceeds specified size
+                if row_buffer.get_size() >= conf.chunk_size:
+                    # click.echo(f"writing {row_buffer.get_size()} rows...")
+                    for csvwriter, table in zip(writers, row_buffer.get_tables()):
+                        exe.submit(csvwriter.writerows, row_buffer.get_rows(table))
 
                     row_buffer.reset()
 
-                files.close()
+                # reset variables
+                for id_key in id_dict:
+                    id_dict[id_key] = None
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=len(select_tables)) as executor:
+
+        with open_file(conf.json_file, mode="rb") as json_file:  # read bytes
+            for writer, table in zip(writers, mappings):
+                writer.writerow(list(mappings[table].keys()))
+
+            process_coro = process(executor)
+            # send the events from custom parser to process coroutine
+            parse_coro = utils.parse_coro(process_coro)
+            # send the events and values from basic_parse to custom parser
+            coro = ijson.basic_parse_coro(parse_coro, multiple_values=True, use_float=True)
+
+            for chunk in json_bytes_from_file(json_file):
+                coro.send(chunk)  # push bytes to parser
+
+        try:
+            coro.close()
+        except ijson.IncompleteJSONError as e:
+            click.echo(f"\nijson.IncompleteJSONError {e}", err=True)
+            pass
+        finally:
+            pbar.close()
+            click.echo()
+            # write any remaining rows
+            if row_buffer.get_size() > 0:
+                for w, t in zip(writers, row_buffer.get_tables()):
+                    executor.submit(w.writerows, row_buffer.get_rows(t))
+                    file = files.files[t]
+                    click.echo(f"Wrote {file['name']} with {len(mappings[t]):,} fields")
+
+                row_buffer.reset()
+
+            files.close()
 
 
-def prompt_tables(top_keys):
+def prompt_tables(top_keys: Iterable) -> Iterable:
+    """
+    Display prompt for top-level keys to parse
+
+    :param top_keys: Top-level keys
+    """
     input_valid = 0
-    tables = ''
+    tables = ()
     while input_valid == 0:
         tables = click.prompt(
             f'\nEnter desired keys from the preceding list, separated by spaces (leave empty for all):\n',
@@ -127,9 +156,14 @@ def prompt_tables(top_keys):
     return tables
 
 
-def prompt_ids(top_keys):
+def prompt_ids(top_keys: Iterable) -> Iterable:
+    """
+    Display prompt for identifier top-level keys
+
+    :param top_keys: Top-level keys
+    """
     input_valid = 0
-    identifiers = ''
+    identifiers = ()
     while input_valid == 0:
         identifiers = click.prompt(f'Specify identifier keys separated by spaces (leave empty for none):',
                                    default='')  # add error if keys not in tables
@@ -149,24 +183,28 @@ def prompt_ids(top_keys):
 @click.command()
 @click.option('--filepath', '-f', help='Input JSON file path', required=True, type=click.Path(exists=True))
 @click.option('--out', '-o', help='Output directory', required=True, type=click.Path(file_okay=False))
-@click.option('--chunk-size', '-cs', type=int, default=100000,
-              help='# rows to keep in memory before writing for each file')
 @click.option('--identifier', '-id',
-              help=
-              """
+              help="""
               Top-level key to add as identifier col to every output file. 
               You can add this flag multiple times eg. -id factId -id otherId
               """,
               default=(), multiple=True)
 @click.option('--table', '-t',
-              help=
-              """
-              Top-level key whose json values are to be converted to tabular format. 
+              help="""
+              Top-level key whose json values are to be converted to tabular format.
+              If not specified, you will be prompted.
               You can add this flag multiple times eg. -t topkey1 -t topkey2
               """,
-              multiple=True)
+              default=(), multiple=True)
 @click.option('--compress', '-c', help="Output a compressed csv eg. output_file.csv.gz", is_flag=True)
-def main(filepath, out, chunk_size, identifier, table, compress):
+@click.option('--chunk-size', '-cs', type=int, default=1000,
+              help='Number of rows to keep in memory before writing for each file.')
+@click.option('--exclude', '-e', help="""
+            Use all available top-level keys excluding those specified with this option. 
+            Mutually exclusive with \'--table\' / \'-t\'
+            """,
+              default=(), multiple=True)
+def main(filepath, out, identifier, table, compress, chunk_size, exclude):
     """Program that flattens JSON file and converts to CSV"""
 
     def validate_inputs():
@@ -193,10 +231,19 @@ def main(filepath, out, chunk_size, identifier, table, compress):
             except FileNotFoundError:
                 raise click.exceptions.BadOptionUsage(option_name='--out',
                                                       message=f"Invalid value for '--out / -o': Path '{out}' cannot be created")
+        if table and exclude:
+            raise click.exceptions.BadOptionUsage(option_name='--exclude',
+                                                  message=f"Options '--table' / '-t' and '--exclude' / '-e' cannot be used in the same command.")
+
         if table:
             if not (set(table).issubset(set(t_keys))):
                 raise click.exceptions.BadOptionUsage(option_name='--table',
                                                       message=f"Invalid value for '--table' / '-t': At least one of {table} is not a top-level key")
+
+        if exclude:
+            if not (set(exclude).issubset(set(t_keys))):
+                raise click.exceptions.BadOptionUsage(option_name='--exclude',
+                                                      message=f"Invalid value for '--exclude' / '-e': At least one of {exclude} is not a top-level key")
 
     def remove_empty_tables():
         """
@@ -216,7 +263,6 @@ def main(filepath, out, chunk_size, identifier, table, compress):
 
     validate_inputs()
 
-    click.echo("Starting program")
     config = Config(filepath, out, chunk_size)
     cli = Cmd()
 
@@ -227,9 +273,15 @@ def main(filepath, out, chunk_size, identifier, table, compress):
     top_keys = get_top_keys(filepath)
     cli.columnize(top_keys, displaywidth=80)
 
-    if not table:
+    if not table and not exclude:
         table = prompt_tables(top_keys)
-    tables = table
+
+    if exclude:
+        for t in exclude:
+            click.echo(f"\nExcluding key '{t}' from output\n")
+        tables = [t for t in top_keys if t not in exclude]
+    else:
+        tables = table
 
     if not identifier:
         identifier = prompt_ids(top_keys)
@@ -240,9 +292,13 @@ def main(filepath, out, chunk_size, identifier, table, compress):
         if idt in tables:
             tables.remove(idt)
 
-    click.clear()
-
     mappings = Mapping.create_mappings(tables, config)
+    click.echo()
+    # warn user if number of fields exceeds 1000
+    for table in mappings:
+        num_fields = len(mappings[table])
+        if num_fields > 1000:
+            click.echo(click.style(f"Warning: table '{table}' will be created with {num_fields:,} fields", fg='yellow'))
 
     remove_empty_tables()
 
@@ -255,19 +311,15 @@ def main(filepath, out, chunk_size, identifier, table, compress):
     out_files = FileHandler()
     filename = Path(filepath).stem.strip(".json")
     for key in mappings.keys():
-        out_files.open(key, Path(out)/f'{filename}_{key}{extension}', mode='wt', encoding='utf-8', newline='')
+        out_files.open(key, Path(out) / f'{filename}_{key}{extension}', mode='wt', encoding='utf-8', newline='')
 
     # Create list of writers
     files = out_files.files
     # note - The order of writers is the same as the order of top-level keys in mappings
-    writers = [csv.DictWriter(files[table]['file'],
-                              fieldnames=list(mappings[table].keys()),
-                              extrasaction='ignore')
-               for table in mappings]
+    writers = [csv.writer(files[table]['file']) for table in mappings]
 
-    Flatten.json_flat(mappings, writers, out_files, tables, config)
+    flatten(out_files, tables, mappings, writers, config)
 
     click.echo(f"\n{out_files.size()} files written to {out}\n")
 
-    click.echo(f"Number of json lines written into each file is: {Flatten.count_rows}")
-
+    # click.echo(f"Number of json lines written into each file is: {Flatten.count_rows}")

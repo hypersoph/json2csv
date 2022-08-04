@@ -1,13 +1,13 @@
 from collections import defaultdict
 import gzip
-from pathlib import Path
+from queue import Queue
 
 
-def open_file(filepath, **kwargs):
+def open_file(filepath: str, **kwargs):
     """
     Open .json or .json.gz file depending on given filename extension
 
-    :param filename: str specifying file path
+    :param filepath: str specifying file path
     """
     if filepath.endswith(".gz"):
         return gzip.open(filepath, **kwargs)
@@ -18,21 +18,19 @@ def open_file(filepath, **kwargs):
 class RowBuffer:
     """
     Helper class for accumulating rows from json flattening before writing to file
-
     A defaultdict mapping tables to a list of parsed rows
     """
-    collector = defaultdict(list)
+    collector = defaultdict(Queue)
     size = 0  # total number of rows being kept in collector
 
     def append(self, table, row):
         """
         Append a row to its corresponding table
-
         :param table:
         :param row:
         :return:
         """
-        self.get_rows(table).append(row)
+        self.collector[table].put_nowait(row)
         self.inc_size()
 
     def get_rows(self, table):
@@ -41,7 +39,7 @@ class RowBuffer:
         :param table:
         :return:
         """
-        return self.collector[table]
+        return self.collector[table].queue
 
     def get_tables(self):
         """
@@ -64,7 +62,7 @@ class RowBuffer:
         self.size = self.size + 1
 
     def reset(self):
-        self.collector = defaultdict(list)
+        self.collector = defaultdict(Queue)
         self.size = 0
 
 
@@ -156,7 +154,7 @@ class Stack:
         else:
             return None
 
-    def setLast(self, item):
+    def set_last(self, item):
         """
         Modify the last item in the stack
         :param item: value to change last item of stack to

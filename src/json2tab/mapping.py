@@ -1,3 +1,6 @@
+from typing import Iterable
+
+from json2tab import Config
 from json2tab.utils import parse, open_file
 from ijson import IncompleteJSONError
 import click
@@ -9,7 +12,7 @@ class Mapping:
     total_count_json = 0  # total count of json lines in file
 
     @staticmethod
-    def create_mappings(select_tables, config):
+    def create_mappings(select_tables: Iterable, config: Config) -> dict:
         """
         Creates the mappings variable determining the headers of each output file
 
