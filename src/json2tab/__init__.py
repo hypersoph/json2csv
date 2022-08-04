@@ -181,7 +181,7 @@ def prompt_ids(top_keys: Iterable) -> Iterable:
 
 
 @click.command()
-@click.option('--filepath', '-f', help='Input JSON file path', required=True, type=click.Path(exists=True))
+@click.option('--filepath', '-f', help='Input JSON file path. The file extension must be .json or .json.gz', required=True, type=click.Path(exists=True))
 @click.option('--out', '-o', help='Output directory', required=True, type=click.Path(file_okay=False))
 @click.option('--identifier', '-id',
               help="""
