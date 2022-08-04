@@ -205,7 +205,8 @@ def prompt_ids(top_keys: Iterable) -> Iterable:
             Usage eg. -e topkey1 -e topkey2
             """,
               default=(), multiple=True)
-def main(filepath, out, identifier, table, compress, chunk_size, exclude):
+@click.option('--all', '-a', help="Use all available top-level keys, skipping the prompt", is_flag=True)
+def main(filepath, out, identifier, table, compress, chunk_size, exclude, all):
     """Program that flattens JSON file and converts to CSV"""
 
     def validate_inputs():
@@ -235,6 +236,12 @@ def main(filepath, out, identifier, table, compress, chunk_size, exclude):
         if table and exclude:
             raise click.exceptions.BadOptionUsage(option_name='--exclude',
                                                   message=f"Options '--table' / '-t' and '--exclude' / '-e' cannot be used in the same command.")
+        if table and all:
+            raise click.exceptions.BadOptionUsage(option_name='--exclude',
+                                                  message=f"Options '--table' / '-t' and '--all' / '-a' cannot be used in the same command.")
+        if all and exclude:
+            raise click.exceptions.BadOptionUsage(option_name='--exclude',
+                                                  message=f"Options '--all' / '-a' and '--exclude' / '-e' cannot be used in the same command.")
 
         if table:
             if not (set(table).issubset(set(t_keys))):
@@ -245,6 +252,10 @@ def main(filepath, out, identifier, table, compress, chunk_size, exclude):
             if not (set(exclude).issubset(set(t_keys))):
                 raise click.exceptions.BadOptionUsage(option_name='--exclude',
                                                       message=f"Invalid value for '--exclude' / '-e': At least one of {exclude} is not a top-level key")
+            if identifier:
+                if len(set(exclude).intersection(set(identifier)))>0:
+                    raise click.exceptions.BadOptionUsage(option_name='--exclude',
+                                                          message=f"Invalid value for '--exclude' / '-e': At least one of {exclude} was specified as an identifier")
 
     def remove_empty_tables():
         """
@@ -272,7 +283,7 @@ def main(filepath, out, identifier, table, compress, chunk_size, exclude):
 
     top_keys = get_top_keys(filepath)
 
-    if not table and not exclude:
+    if not table and not exclude and not all:
         print(f"\nTop-level keys:\n=================")
         cli.columnize(top_keys, displaywidth=80)
         table = prompt_tables(top_keys)
@@ -281,6 +292,8 @@ def main(filepath, out, identifier, table, compress, chunk_size, exclude):
         for t in exclude:
             click.echo(f"\nExcluding key '{t}' from output\n")
         tables = [t for t in top_keys if t not in exclude]
+    elif all:
+        tables = top_keys
     else:
         tables = table
 
