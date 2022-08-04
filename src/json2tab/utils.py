@@ -144,6 +144,7 @@ def parse(file, **kwargs):
         if event == 'map_key':
             prefix = '.'.join(path[:-1])
             path[-1] = value
+
         elif event == 'start_map':
             prefix = '.'.join(path)
             path.append(None)
@@ -157,15 +158,12 @@ def parse(file, **kwargs):
 
         elif event == 'end_map':
             path.pop()
-
-            if openings.peek() == "start_map":
-                openings.pop()
-                openings.push("map_parsed")
-            elif openings.peek() == "arr_parsed":
-                openings.pop()
-                openings.push("map_parsed")
-
             prefix = '.'.join(path)
+
+            if openings.peek() == "start_map" or openings.peek() == "arr_parsed":
+                openings.pop()
+                openings.push("map_parsed")
+
         elif event == 'start_array':
             prefix = '.'.join(path)
 
@@ -203,7 +201,7 @@ def parse(file, **kwargs):
 
         else:  # any scalar value
             prefix = '.'.join(path)
-            if openings.peek() == 'start_array':  # if array is of type [value1, value2, value3]
+            if openings.peek() == 'start_array':
                 arr_indices.set_last(arr_indices.peek() + 1)
                 current_i = current_pos.peek()
                 path[current_i] = str(arr_indices.peek())  # update the path
