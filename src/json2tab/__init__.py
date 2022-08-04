@@ -62,13 +62,8 @@ def flatten(files: FileHandler, select_tables: Iterable, mappings: dict, writers
                     if mappings[base_prefix][prefix] is None:
                         mappings[base_prefix][prefix] = value
 
-                    # # else if leaf reached and field is already populated, create or append to array
-                    # elif type(mappings[base_prefix][prefix]) == list:
-                    #     mappings[base_prefix][prefix] = [*mappings[base_prefix][prefix],
-                    #                                      value]  # unpack existing array into new one
-                    # else:
-                    #     #click.echo(f"{base_prefix} {prefix}, {value}", err=True)
-                    #     mappings[base_prefix][prefix] = [mappings[base_prefix][prefix], value]
+                    else:
+                        raise Exception(f"Multiple values with same prefix: {prefix}, value: {value}")
 
             # if reached end of a top-level json (i.e. finished one property)
             elif prefix == '' and event == 'end_map' and value is None:

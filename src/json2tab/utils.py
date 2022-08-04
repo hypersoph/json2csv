@@ -69,6 +69,8 @@ def parse_coro(target):
             elif openings.peek() == "arr_parsed":
                 openings.pop()
                 openings.push("map_parsed")
+            elif openings.peek() == "start_array":
+                openings.push("map_parsed")
 
             prefix = '.'.join(path)
         elif event == 'start_array':
@@ -163,6 +165,8 @@ def parse(file, **kwargs):
                 openings.push("map_parsed")
             elif openings.peek() == "arr_parsed":
                 openings.pop()
+                openings.push("map_parsed")
+            elif openings.peek() == "start_array":
                 openings.push("map_parsed")
 
             prefix = '.'.join(path)
