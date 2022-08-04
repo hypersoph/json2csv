@@ -58,7 +58,6 @@ def parse_coro(target):
                 if not arr_indices.is_empty():
                     arr_indices.set_last(arr_indices.peek() + 1)
                     path[current_pos.peek()] = str(arr_indices.peek())  # update the path
-                openings.pop()
 
         elif event == 'end_map':
             path.pop()
@@ -68,8 +67,6 @@ def parse_coro(target):
                 openings.push("map_parsed")
             elif openings.peek() == "arr_parsed":
                 openings.pop()
-                openings.push("map_parsed")
-            elif openings.peek() == "start_array":
                 openings.push("map_parsed")
 
             prefix = '.'.join(path)
@@ -103,6 +100,8 @@ def parse_coro(target):
             elif openings.peek() == 'map_parsed':
                 openings.pop()
                 openings.pop()
+                if openings.peek() == "start_array":
+                    openings.push("map_parsed")
 
             prefix = '.'.join(path)
 
@@ -155,7 +154,6 @@ def parse(file, **kwargs):
                 if not arr_indices.is_empty():
                     arr_indices.set_last(arr_indices.peek() + 1)
                     path[current_pos.peek()] = str(arr_indices.peek())  # update the path
-                openings.pop()
 
         elif event == 'end_map':
             path.pop()
@@ -165,8 +163,6 @@ def parse(file, **kwargs):
                 openings.push("map_parsed")
             elif openings.peek() == "arr_parsed":
                 openings.pop()
-                openings.push("map_parsed")
-            elif openings.peek() == "start_array":
                 openings.push("map_parsed")
 
             prefix = '.'.join(path)
@@ -200,6 +196,8 @@ def parse(file, **kwargs):
             elif openings.peek() == 'map_parsed':
                 openings.pop()
                 openings.pop()
+                if openings.peek() == "start_array":
+                    openings.push("map_parsed")
 
             prefix = '.'.join(path)
 
