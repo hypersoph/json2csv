@@ -56,13 +56,18 @@ Python 3.9 is required. Make sure PIP tool is installed in python.
 
 
 ## **Usage : Convert JSON to multiple CSV files (Command line)**
+
+Note: All the following commands also work this way:
+
+   `python -m json2tab [OPTIONS]`
+
 1. After everything is installed properly. Use the command
 
-   `python -m json2tab -f input_file_name -o output_file_folder_name`
+   `json2tab -f input_file_name -o output_file_folder_name`
 
    If you want the output files to be compressed, which save the space a lot. Use the command
 
-   `python -m json2tab -f input_file_name -o output_file_folder_name --compress`
+   `json2tab -f input_file_name -o output_file_folder_name --compress`
 
 
 2. Then all the available top-level keys are showed in the interactive result.
