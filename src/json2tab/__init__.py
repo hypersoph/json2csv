@@ -207,7 +207,7 @@ def prompt_ids(top_keys: Iterable) -> Iterable:
               """,
               default=(), multiple=True)
 @click.option('--compress', '-c', help="Output a compressed csv eg. output_file.csv.gz", is_flag=True)
-@click.option('--chunk-size', '-cs', type=int, default=1000,
+@click.option('--chunk-size', '-cs', type=int, default=1,
               help='Number of rows to keep in memory before writing for each file.')
 @click.option('--exclude', '-e', help="""
             Use all available top-level keys excluding those specified with this option. 
