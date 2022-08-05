@@ -74,12 +74,7 @@ def flatten(files: FileHandler, select_tables: Iterable, mappings: dict, writers
                     for id_key in id_dict:
                         mappings[table][id_key] = id_dict[id_key]
 
-                    futures.append(exe.submit(list, mappings[table].values()))
-
-                concurrent.futures.wait(futures)
-
-                for future, table in zip(futures, mappings):
-                    row = future.result()
+                    row = list(mappings[table].values())
                     row_buffer.append(table, row)
 
                     # reset map
@@ -335,7 +330,7 @@ def main(filepath, out, identifier, table, compress, chunk_size, exclude, all, m
     filename = Path(filepath).stem.strip(".json")
 
     if mapping_file:
-        click.echo(f"Using mapping file {mapping_file}")
+        click.echo(f"\nUsing mapping file {mapping_file}")
         with open(mapping_file, 'r') as f:
             mappings = json.load(f)
     else:
