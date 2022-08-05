@@ -30,7 +30,7 @@ def json_bytes_from_file(f):
         yield chunk
 
 
-def flatten(files: FileHandler, select_tables: Iterable, mappings: dict, writers: list, conf: Config) -> NoReturn:
+def flatten(files: FileHandler, select_tables: list, mappings: dict, writers: list, conf: Config) -> NoReturn:
     """
     Flatten json and output to csv
 
@@ -68,7 +68,7 @@ def flatten(files: FileHandler, select_tables: Iterable, mappings: dict, writers
 
             # if reached end of a top-level json (i.e. finished one property)
             elif prefix == '' and event == 'end_map' and value is None:
-                futures = []
+
                 for table in mappings:
                     # add identifiers to row
                     for id_key in id_dict:
@@ -203,14 +203,16 @@ def prompt_ids(top_keys: Iterable) -> Iterable:
             """,
               default=(), multiple=True)
 @click.option('--all-keys', '-a', help="Use all available top-level keys, skipping the prompt", is_flag=True)
-@click.option('--only-create-map', '-ocm', is_flag=True, help="Run the program only to create mappings file on all keys.")
+@click.option('--only-create-map', '-ocm', is_flag=True,
+              help="Run the program only to create mappings file on all keys.")
 @click.option('--mapping-file', '-m', help="""
             Specify mappings json file to re-use from a previous run of the program. 
             Saves time by skipping create mappings portion of the program.
             """,
               type=click.Path(exists=True))
-@click.option('--no-map','-nm', help="Do not create mappings json file.", is_flag=True)
-def main(filepath, out, identifier, table, compress, chunk_size, exclude, all_keys, only_create_map, mapping_file, no_map):
+@click.option('--no-map', '-nm', help="Do not create mappings json file.", is_flag=True)
+def main(filepath, out, identifier, table, compress, chunk_size, exclude, all_keys, only_create_map, mapping_file,
+         no_map):
     """Program that flattens JSON file and converts to CSV"""
 
     def validate_inputs():
@@ -284,7 +286,6 @@ def main(filepath, out, identifier, table, compress, chunk_size, exclude, all_ke
                 raise click.exceptions.BadOptionUsage(option_name='--mapping-file',
                                                       message=f"Invalid value for '--mapping-file' / '-m' or '--exclude' / '-e': exclusions must be one of {mapping_keys}")
 
-
     def remove_empty_tables():
         """
         remove empty tables from `mappings` and `tables`
@@ -310,7 +311,8 @@ def main(filepath, out, identifier, table, compress, chunk_size, exclude, all_ke
     click.echo(f"Output path: {out}")  # note to self: fix this to show full filesystem path
 
     if only_create_map:
-        click.echo("'--only-create-map', '-ocm' specified. Program will shut down after creating mappings file on all keys.")
+        click.echo(
+            "'--only-create-map', '-ocm' specified. Program will shut down after creating mappings file on all keys.")
 
     top_keys = get_top_keys(filepath)
 
@@ -384,7 +386,7 @@ def main(filepath, out, identifier, table, compress, chunk_size, exclude, all_ke
     # note - The order of writers is the same as the order of top-level keys in mappings
     writers = [csv.writer(files[table]['file']) for table in mappings]
 
-    flatten(out_files, tables, mappings, writers, config)
+    flatten(out_files, list(tables), mappings, writers, config)
 
     click.echo(f"\n{out_files.size()} files written to {out}\n")
 
