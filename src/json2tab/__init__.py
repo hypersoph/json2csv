@@ -8,7 +8,7 @@ from typing import Iterable, NoReturn
 
 import json2tab.utils as utils
 from json2tab.utils import parse, get_top_keys
-from json2tab.helpers import FileHandler, RowBuffer, open_file
+from json2tab.helpers import FileHandler, RowBuffer, open_file, Row
 from json2tab.config import Config
 from json2tab.mapping import Mapping
 
@@ -29,6 +29,8 @@ def json_bytes_from_file(f):
             break
         yield chunk
 
+def create_col_lookup(columns, size):
+    return dict(zip(columns, range(size)))
 
 def flatten(files: FileHandler, select_tables: list, mappings: dict, writers: list, conf: Config) -> NoReturn:
     """
@@ -46,6 +48,17 @@ def flatten(files: FileHandler, select_tables: list, mappings: dict, writers: li
     for identifier in conf.identifiers:
         id_dict[identifier] = None
 
+    # current row being parsed for every table
+    current_rows = {}
+    index_lookup = {}
+    for table in mappings:
+        num_cols = len(mappings[table])
+
+        # list indices of corresponding columns
+        col_lookup = create_col_lookup(mappings[table].keys(), num_cols)
+        index_lookup[table] = col_lookup
+        current_rows[table] = Row(num_cols, col_lookup)
+
     pbar = tqdm(total=Mapping.total_count_json, desc='Flattening JSON', unit=" lines")
 
     @ijson.coroutine
@@ -60,8 +73,9 @@ def flatten(files: FileHandler, select_tables: list, mappings: dict, writers: li
 
                 if base_prefix in select_tables and base_prefix not in conf.identifiers:
                     # if leaf reached and the field is not yet populated, set the value
-                    if mappings[base_prefix][prefix] is None:
-                        mappings[base_prefix][prefix] = value
+                    row = current_rows[base_prefix]
+                    if row.get_value(prefix) is None:
+                        row.set_value(prefix, value)
 
                     else:
                         raise Exception(f"Multiple values with same prefix: {prefix}, value: {value}")
@@ -70,16 +84,15 @@ def flatten(files: FileHandler, select_tables: list, mappings: dict, writers: li
             elif prefix == '' and event == 'end_map' and value is None:
 
                 for table in mappings:
+                    row = current_rows[table]
                     # add identifiers to row
                     for id_key in id_dict:
-                        mappings[table][id_key] = id_dict[id_key]
+                        row.set_value(id_key, id_dict[id_key])
 
-                    row = list(mappings[table].values())
-                    row_buffer.append(table, row)
+                    row_buffer.append(table, row.get_row())
 
-                    # reset map
-                    for field in mappings[table]:
-                        mappings[table][field] = None
+                    # reset
+                    current_rows[table] = Row(len(row), index_lookup[table])
 
                 pbar.update(1)
 

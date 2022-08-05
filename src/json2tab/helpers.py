@@ -15,6 +15,30 @@ def open_file(filepath: str, **kwargs):
         return open(filepath, **kwargs)
 
 
+class Row:
+    """
+    """
+
+    def __init__(self, size: int, col_lookup: dict):
+        self.row = [None] * size
+        self.col_lookup = col_lookup
+        self.size = size
+
+    def set_value(self, column, value):
+        index = self.col_lookup[column]
+        self.row[index] = value
+
+    def get_value(self, column):
+        index = self.col_lookup[column]
+        return self.row[index]
+
+    def get_row(self):
+        return self.row
+
+    def __len__(self):
+        return self.size
+
+
 class RowBuffer:
     """
     Helper class for accumulating rows from json flattening before writing to file
