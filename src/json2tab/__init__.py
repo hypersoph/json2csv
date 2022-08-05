@@ -204,13 +204,20 @@ def prompt_ids(top_keys: Iterable) -> Iterable:
               default=(), multiple=True)
 @click.option('--all-keys', '-a', help="Use all available top-level keys, skipping the prompt", is_flag=True)
 @click.option('--only-create-map', '-ocm', is_flag=True,
-              help="Run the program only to create mappings file on all keys.")
+              help="""
+              Run the program only to create mappings file on all keys. 
+            Important note: the mappings file will be created by default when all keys are being processed 
+            (for example, when the user specifies --all-keys).
+              """)
 @click.option('--mapping-file', '-m', help="""
             Specify mappings json file to re-use from a previous run of the program. 
             Saves time by skipping create mappings portion of the program.
             """,
               type=click.Path(exists=True))
-@click.option('--no-map', '-nm', help="Do not create mappings json file.", is_flag=True)
+@click.option('--no-map', '-nm', help="""
+            Disables the automatic creation of the mappings json file when all top-level keys are desired.
+            (for example, when the user specifies --all-keys)""",
+              is_flag=True)
 def main(filepath, out, identifier, table, compress, chunk_size, exclude, all_keys, only_create_map, mapping_file,
          no_map):
     """Program that flattens JSON file and converts to CSV"""
