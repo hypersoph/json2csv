@@ -1,3 +1,4 @@
+import json
 import os
 import csv
 from pathlib import Path
@@ -181,7 +182,8 @@ def prompt_ids(top_keys: Iterable) -> Iterable:
 
 
 @click.command()
-@click.option('--filepath', '-f', help='Input JSON file path. The file extension must be .json or .json.gz', required=True, type=click.Path(exists=True))
+@click.option('--filepath', '-f', help='Input JSON file path. The file extension must be .json or .json.gz',
+              required=True, type=click.Path(exists=True))
 @click.option('--out', '-o', help='Output directory', required=True, type=click.Path(file_okay=False))
 @click.option('--identifier', '-id',
               help="""
@@ -206,7 +208,13 @@ def prompt_ids(top_keys: Iterable) -> Iterable:
             """,
               default=(), multiple=True)
 @click.option('--all', '-a', help="Use all available top-level keys, skipping the prompt", is_flag=True)
-def main(filepath, out, identifier, table, compress, chunk_size, exclude, all):
+@click.option('--mapping-file', '-m', help="""
+            Specify mappings json file to re-use from a previous run of the program. 
+            Saves time by skipping create mappings portion of the program.
+            """,
+              type=click.Path(exists=True))
+@click.option('--no-map','-nm', help="Do not create mappings json file.", is_flag=True)
+def main(filepath, out, identifier, table, compress, chunk_size, exclude, all, mapping_file, no_map):
     """Program that flattens JSON file and converts to CSV"""
 
     def validate_inputs():
@@ -253,9 +261,27 @@ def main(filepath, out, identifier, table, compress, chunk_size, exclude, all):
                 raise click.exceptions.BadOptionUsage(option_name='--exclude',
                                                       message=f"Invalid value for '--exclude' / '-e': At least one of {exclude} is not a top-level key")
             if identifier:
-                if len(set(exclude).intersection(set(identifier)))>0:
+                if len(set(exclude).intersection(set(identifier))) > 0:
                     raise click.exceptions.BadOptionUsage(option_name='--exclude',
                                                           message=f"Invalid value for '--exclude' / '-e': At least one of {exclude} was specified as an identifier")
+
+        if mapping_file:
+            if not mapping_file.endswith(".json"):
+                raise click.exceptions.BadOptionUsage(option_name='--mapping-file',
+                                                      message=f"Invalid value for '--mapping-file' / '-m': Mapping file must be .json file")
+
+            mapping_keys = get_top_keys(mapping_file)
+
+            if not (set(mapping_keys).issubset(set(t_keys))):
+                raise click.exceptions.BadOptionUsage(option_name='--mapping-file',
+                                                      message=f"Invalid value for '--mapping-file' / '-m': At least one of {mapping_keys} is not a top-level key. Use a different mapping file.")
+
+            if table and not (set(table).issubset(set(mapping_keys))):
+                raise click.exceptions.BadOptionUsage(option_name='--mapping-file',
+                                                      message=f"Invalid value for '--mapping-file' / '-m' or '--table' / '-t': tables must be one of {mapping_keys}")
+            if exclude and not (set(exclude).issubset(set(mapping_keys))):
+                raise click.exceptions.BadOptionUsage(option_name='--mapping-file',
+                                                      message=f"Invalid value for '--mapping-file' / '-m' or '--exclude' / '-e': exclusions must be one of {mapping_keys}")
 
     def remove_empty_tables():
         """
@@ -306,7 +332,21 @@ def main(filepath, out, identifier, table, compress, chunk_size, exclude, all):
         if idt in tables:
             tables.remove(idt)
 
-    mappings = Mapping.create_mappings(tables, config)
+    filename = Path(filepath).stem.strip(".json")
+
+    if mapping_file:
+        click.echo(f"Using mapping file {mapping_file}")
+        with open(mapping_file, 'r') as f:
+            mappings = json.load(f)
+    else:
+        mappings = Mapping.create_mappings(tables, config)
+
+        if not no_map:
+            mapping_path = Path(out) / f'{filename}_mappings.json'
+            with open(mapping_path, 'w') as f:
+                json.dump(mappings, f)
+            click.echo(f"Saved mappings to: {mapping_path}")
+
     click.echo()
     # warn user if number of fields exceeds 1000
     for table in mappings:
@@ -323,7 +363,7 @@ def main(filepath, out, identifier, table, compress, chunk_size, exclude, all):
 
     # open all CSV files, creates them if they don't exist
     out_files = FileHandler()
-    filename = Path(filepath).stem.strip(".json")
+
     for key in mappings.keys():
         out_files.open(key, Path(out) / f'{filename}_{key}{extension}', mode='wt', encoding='utf-8', newline='')
 
