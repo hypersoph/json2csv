@@ -202,14 +202,15 @@ def prompt_ids(top_keys: Iterable) -> Iterable:
             Usage eg. -e topkey1 -e topkey2
             """,
               default=(), multiple=True)
-@click.option('--all', '-a', help="Use all available top-level keys, skipping the prompt", is_flag=True)
+@click.option('--all-keys', '-a', help="Use all available top-level keys, skipping the prompt", is_flag=True)
+@click.option('--only-create-map', '-ocm', is_flag=True, help="Run the program only to create mappings file on all keys.")
 @click.option('--mapping-file', '-m', help="""
             Specify mappings json file to re-use from a previous run of the program. 
             Saves time by skipping create mappings portion of the program.
             """,
               type=click.Path(exists=True))
 @click.option('--no-map','-nm', help="Do not create mappings json file.", is_flag=True)
-def main(filepath, out, identifier, table, compress, chunk_size, exclude, all, mapping_file, no_map):
+def main(filepath, out, identifier, table, compress, chunk_size, exclude, all_keys, only_create_map, mapping_file, no_map):
     """Program that flattens JSON file and converts to CSV"""
 
     def validate_inputs():
@@ -236,13 +237,18 @@ def main(filepath, out, identifier, table, compress, chunk_size, exclude, all, m
             except FileNotFoundError:
                 raise click.exceptions.BadOptionUsage(option_name='--out',
                                                       message=f"Invalid value for '--out / -o': Path '{out}' cannot be created")
+        if only_create_map:
+            if identifier or table or compress or exclude or all_keys or mapping_file or no_map:
+                raise click.exceptions.BadOptionUsage(option_name='--only-create-map',
+                                                      message=f"Options '--only-create-map' / '-ocm' should not be used with any other optional flags.")
+
         if table and exclude:
             raise click.exceptions.BadOptionUsage(option_name='--exclude',
                                                   message=f"Options '--table' / '-t' and '--exclude' / '-e' cannot be used in the same command.")
-        if table and all:
+        if table and all_keys:
             raise click.exceptions.BadOptionUsage(option_name='--exclude',
                                                   message=f"Options '--table' / '-t' and '--all' / '-a' cannot be used in the same command.")
-        if all and exclude:
+        if all_keys and exclude:
             raise click.exceptions.BadOptionUsage(option_name='--exclude',
                                                   message=f"Options '--all' / '-a' and '--exclude' / '-e' cannot be used in the same command.")
 
@@ -278,6 +284,7 @@ def main(filepath, out, identifier, table, compress, chunk_size, exclude, all, m
                 raise click.exceptions.BadOptionUsage(option_name='--mapping-file',
                                                       message=f"Invalid value for '--mapping-file' / '-m' or '--exclude' / '-e': exclusions must be one of {mapping_keys}")
 
+
     def remove_empty_tables():
         """
         remove empty tables from `mappings` and `tables`
@@ -302,9 +309,12 @@ def main(filepath, out, identifier, table, compress, chunk_size, exclude, all, m
     click.echo(f"Input file: {filepath}")
     click.echo(f"Output path: {out}")  # note to self: fix this to show full filesystem path
 
+    if only_create_map:
+        click.echo("'--only-create-map', '-ocm' specified. Program will shut down after creating mappings file on all keys.")
+
     top_keys = get_top_keys(filepath)
 
-    if not table and not exclude and not all:
+    if not table and not exclude and not all_keys and not only_create_map:
         print(f"\nTop-level keys:\n=================")
         cli.columnize(top_keys, displaywidth=80)
         table = prompt_tables(top_keys)
@@ -313,12 +323,15 @@ def main(filepath, out, identifier, table, compress, chunk_size, exclude, all, m
         for t in exclude:
             click.echo(f"\nExcluding key '{t}' from output\n")
         tables = [t for t in top_keys if t not in exclude]
-    elif all:
+    elif all_keys:
         tables = top_keys
     else:
         tables = table
 
-    if not identifier:
+    if tables == top_keys and not all_keys:
+        all_keys = True
+
+    if not identifier and not only_create_map:
         identifier = prompt_ids(top_keys)
     config.identifiers = identifier
 
@@ -336,11 +349,15 @@ def main(filepath, out, identifier, table, compress, chunk_size, exclude, all, m
     else:
         mappings = Mapping.create_mappings(tables, config)
 
-        if not no_map:
+        # only output mappings json if all keys or only_create_map specified
+        if (not no_map and all_keys) or only_create_map:
             mapping_path = Path(out) / f'{filename}_mappings.json'
             with open(mapping_path, 'w') as f:
                 json.dump(mappings, f)
             click.echo(f"Saved mappings to: {mapping_path}")
+
+    if only_create_map:
+        return
 
     click.echo()
     # warn user if number of fields exceeds 1000
