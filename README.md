@@ -1,22 +1,7 @@
 # json-parsing
 
 ## **Description**
-The program will initially identify ALL
-top-level keys (i.e. outermost keys) that 
-are available within the input JSON file
-unless otherwise specified by the user
-(See Selected Tables). A CSV file will
-be created and named after each of these
-keys. This initial part of the program, 
-called mappings, will also read the entire
-JSON file to determine the required headers 
-of the output CSV files. Next, the json will
-be flattened and written to the CSV files,
-skipping any top-level keys which were not
-selected by the user. All values will be
-written based on the previously created
-mappings. This section also undertakes
-the task of adding the identifiers to each CSV file. 
+The program will convert JSON files of any complexity (may be highly nested) to CSV. It uses ijson to parse JSON.
 
 ## **Python Version Requirement**
 Python 3.9 is required. Make sure PIP tool is installed in python. 
