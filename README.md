@@ -1,7 +1,7 @@
 # json-parsing
 
 ## **Description**
-The program will convert JSON files of any complexity (may be highly nested) to CSV. It uses ijson to parse JSON.
+The program will convert JSON files of any complexity (may be highly nested) to CSV. It uses ijson to parse JSON and can handle files several GBs in size.
 
 ## **Python Version Requirement**
 Python 3.9 is required. Make sure PIP tool is installed in python. 
