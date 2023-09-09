@@ -35,25 +35,6 @@ Python 3.9 is required. Make sure PIP tool is installed in python.
 5. Everything is set up now. You can check if `json2tab` package is successfully installed in the environment.
    `where json2tab`
 
-### _Anaconda Prompt (Anaconda3)_
-
-1. Open Anaconda prompt
-2. Create a new environment under python 3.9.12
-
-    `conda create --name env_name python=3.9.12 pip`
-3. Activate the new environment.
-
-    `conda activate env_name`
-4. Check if python is installed in the new environment. Type `python` or `py`. If python is installed it will show the version details. Otherwise, it will open MS Store. If python is not installed in cmd, please see the method using Anaconda.
-5. Set the right directory path to the py files.
-
-    `cd C:\Users\username\path`
-6. Install json parsing.
-
-    `pip install .`
-7. Everything is set up now. You can check if `json2tab` package is successfully installed in the environment.
-   `where json2tab`
-
 
 ## **Usage : Convert JSON to multiple CSV files (Command line)**
 
@@ -103,7 +84,3 @@ The process ended after the progess reaches 100%.
 Run the code in command line for more information, add a new _Command Prompt_ window under _Terminal_ if you are using PyCharm
 
 `python -m json2tab --help`
-
-## **Authors**
-
-Sophia Nguyen, Thomas Cole, Jiachen Qian
